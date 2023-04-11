@@ -1,0 +1,59 @@
+"GEOID","NAME","variable","estimate","moe","summary_est","summary_moe"
+"06001","Alameda County, California","B01001_001",1656754,NA,1656754,NA
+"06003","Alpine County, California","B01001_001",1039,161,1039,161
+"06005","Amador County, California","B01001_001",38429,NA,38429,NA
+"06007","Butte County, California","B01001_001",225817,NA,225817,NA
+"06009","Calaveras County, California","B01001_001",45514,NA,45514,NA
+"06011","Colusa County, California","B01001_001",21454,NA,21454,NA
+"06013","Contra Costa County, California","B01001_001",1142251,NA,1142251,NA
+"06015","Del Norte County, California","B01001_001",27495,NA,27495,NA
+"06017","El Dorado County, California","B01001_001",188563,NA,188563,NA
+"06019","Fresno County, California","B01001_001",984521,NA,984521,NA
+"06021","Glenn County, California","B01001_001",27976,NA,27976,NA
+"06023","Humboldt County, California","B01001_001",135940,NA,135940,NA
+"06025","Imperial County, California","B01001_001",180701,NA,180701,NA
+"06027","Inyo County, California","B01001_001",17977,NA,17977,NA
+"06029","Kern County, California","B01001_001",887641,NA,887641,NA
+"06031","Kings County, California","B01001_001",150691,NA,150691,NA
+"06033","Lake County, California","B01001_001",64195,NA,64195,NA
+"06035","Lassen County, California","B01001_001",30818,NA,30818,NA
+"06037","Los Angeles County, California","B01001_001",10081570,NA,10081570,NA
+"06039","Madera County, California","B01001_001",155433,NA,155433,NA
+"06041","Marin County, California","B01001_001",259943,NA,259943,NA
+"06043","Mariposa County, California","B01001_001",17420,NA,17420,NA
+"06045","Mendocino County, California","B01001_001",87224,NA,87224,NA
+"06047","Merced County, California","B01001_001",271382,NA,271382,NA
+"06049","Modoc County, California","B01001_001",8907,NA,8907,NA
+"06051","Mono County, California","B01001_001",14310,NA,14310,NA
+"06053","Monterey County, California","B01001_001",433410,NA,433410,NA
+"06055","Napa County, California","B01001_001",139623,NA,139623,NA
+"06057","Nevada County, California","B01001_001",99244,NA,99244,NA
+"06059","Orange County, California","B01001_001",3168044,NA,3168044,NA
+"06061","Placer County, California","B01001_001",385512,NA,385512,NA
+"06063","Plumas County, California","B01001_001",18660,NA,18660,NA
+"06065","Riverside County, California","B01001_001",2411439,NA,2411439,NA
+"06067","Sacramento County, California","B01001_001",1524553,NA,1524553,NA
+"06069","San Benito County, California","B01001_001",60376,NA,60376,NA
+"06071","San Bernardino County, California","B01001_001",2149031,NA,2149031,NA
+"06073","San Diego County, California","B01001_001",3316073,NA,3316073,NA
+"06075","San Francisco County, California","B01001_001",874961,NA,874961,NA
+"06077","San Joaquin County, California","B01001_001",742603,NA,742603,NA
+"06079","San Luis Obispo County, California","B01001_001",282165,NA,282165,NA
+"06081","San Mateo County, California","B01001_001",767423,NA,767423,NA
+"06083","Santa Barbara County, California","B01001_001",444829,NA,444829,NA
+"06085","Santa Clara County, California","B01001_001",1927470,NA,1927470,NA
+"06087","Santa Cruz County, California","B01001_001",273962,NA,273962,NA
+"06089","Shasta County, California","B01001_001",179212,NA,179212,NA
+"06091","Sierra County, California","B01001_001",3040,161,3040,161
+"06093","Siskiyou County, California","B01001_001",43468,NA,43468,NA
+"06095","Solano County, California","B01001_001",441829,NA,441829,NA
+"06097","Sonoma County, California","B01001_001",499772,NA,499772,NA
+"06099","Stanislaus County, California","B01001_001",543194,NA,543194,NA
+"06101","Sutter County, California","B01001_001",96109,NA,96109,NA
+"06103","Tehama County, California","B01001_001",63912,NA,63912,NA
+"06105","Trinity County, California","B01001_001",12700,NA,12700,NA
+"06107","Tulare County, California","B01001_001",461898,NA,461898,NA
+"06109","Tuolumne County, California","B01001_001",54045,NA,54045,NA
+"06111","Ventura County, California","B01001_001",847263,NA,847263,NA
+"06113","Yolo County, California","B01001_001",217352,NA,217352,NA
+"06115","Yuba County, California","B01001_001",76360,NA,76360,NA

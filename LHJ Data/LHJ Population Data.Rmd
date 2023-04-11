@@ -1,0 +1,284 @@
+---
+title: "LHJ Population Data"
+author: "CDPH/LHJ population Task Force"
+date: "April, 2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, tidy= TRUE)
+
+```
+
+
+<br> 
+
+TO DO
+
+- generalize for any counties use with their cities; documentation; make it clear and easy!!
+
+
+<br>
+
+ Process
+
+
+- A   obtain (DOF) data on (mid-year) **county** population by year; standardize
+
+- B   obtain (DOF) data on **city** population by year; standardize
+
+- C1  calculate proportions of the LHJ cities in respective counties by year
+- C2  generate table of LHJ **and** county population by year
+- C3  ***share table***
+
+- D   obtain (DOF) **county** by age (single years) by race/ethnicity by sex by year population; standardize
+
+- E   obtain (US Census) data on **city** by age (single years) by race **by** ethnicity data by sex for **decennial census years**; standardize
+
+- F1  based on C3, D, and E: calculate LHJ **and** county age (single years) by race/ethnicity by sex by year population  
+- F1a
+- F1b
+- F2  generate and ***share table***  and aggregated table(s)
+
+
+<br><br>
+
+
+
+-  Notes:
+   - Notes related to "E": 
+     - is census going to release this? when? and/or is this impacted by differential privacy? 
+     - PCT12 and PCT12A, PCT12B, PCT12C, etc., are the single years of age tables by race by ethnicity
+     - Based on the [2020 Census Data Products Planning Crosswalk](https://www2.census.gov/programs-surveys/decennial/2020/program-management/data-product-planning/2010-demonstration-data-products/2020-census-data-products-planning-crosswalk.xlsx), data comparable to PCT12 from 2010 Census Summary File 2 is proposed to be included in the 2020 Demographic and Housing Characteristics File (DHC) but not the 2020 Detailed DHC. If I'm reading it correctly.
+
+   -  Need to add notes regarding equivalency of files generate here to frozen historical "STD" files
+   -  Great "customer support" from Census Bureau Training and Outreach Program 
+
+<br><br>
+
+
+Load packages, read demographic standards, make constants
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(gt) # simple tables in markdown from "tidyverse"
+
+library(readxl)
+library(haven)   # reads SAS files
+library(janitor) # cleans up variable names; many other utilities
+
+
+countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% select(countyName,FIPSCounty)  # read county linkage file
+raceLink   <- read_xlsx("Standards/raceLink.xlsx") 
+ageLink    <- read_xlsx("Standards/ageLink.xlsx", sheet = "age18")  # read age group linkage file 
+ageUpper   <- c(-1,ageLink$uAge)  # create vector needed for age grouping below
+aLabs      <- ageLink$ageName # create vector for age labeling below
+
+
+lhj_cities   <- c("Berkeley", "Long Beach", "Pasadena")
+lhj_counties <- c("Alameda","Los Angeles","Los Angeles") 
+lhj_both     <- bind_cols(county = lhj_counties, city = lhj_cities)
+
+
+```
+
+
+<br><br>
+
+A (DOF E6 files)
+
+"Step A Work" markdown for now
+
+<br><br>
+
+B (DOF E4 files)
+
+
+```{r}
+# City and County total population estimates: 2020 Census Benchmark (April) and 2021-2022 estimates (January)
+raw_e4_2020_2022 <- read_xlsx("E4/E-4_2022_InternetVersion.xlsx", sheet = "Table 2 City County", skip = 1) %>% 
+                      select(-starts_with("Column"))
+
+# City and County total population estimates: 2010 Census Benchmark (April) and 2011-2020 estimates (January)
+raw_e4_2010_2020 <- read_xlsx("E4/E-4_2010-2020-Internet-Version.xlsx", sheet = "Table 2 City County", skip = 1) %>%
+                      select(-starts_with("Column"))
+```
+
+
+<br><br>
+
+C
+
+<br><br>
+
+D (DOF P3 files)
+
+
+source:
+
+ - https://dof.ca.gov/forecasting/demographics/projections/
+
+ - https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/P3_Complete.zip
+
+
+Read and Process raw DOF "P3" with standard-ish names and summarized by demographics
+
+```{r}
+# 2010-2060 County Projections: Sex by Single-Year by Race/Ethnicity
+raw_p3 <- read.csv("P3/P3_Complete.csv") 
+
+work_p3 <- raw_p3 %>% 
+             mutate(FIPSCounty = str_sub(fips,2,5), # extract county part of FIPS code as strin
+                    sex = ifelse(sex == "FEMALE", "Female", ifelse(sex=="MALE", "Male","UNK") ) )%>%
+             left_join(countyLink) %>%  # add data with county names and county codes
+             left_join(raceLink) %>% # add data with r/e names and codes
+             select(county = countyName, year, sex, raceCode, age = agerc, population = perwt) %>%
+             filter(year %in% 2010:2020)   # filter to 2010 to 202 for now
+
+head(work_p3)
+```
+
+
+
+
+
+
+
+
+<br><br>
+
+E (decennial census files; using STDCB data for now)
+
+
+```{r}
+
+cities_2000census  <- read_sas("STD SAS files/data/cities_2000census.sas7bdat") 
+
+cities_2010census  <- read_sas("STD SAS files/data/cities_2010census.sas7bdat") %>% 
+                        clean_names() %>% 
+                        zap_labels() %>%
+                        mutate(sex = ifelse(sex == "F", "Female", ifelse(sex=="M", "Male","UNK") ) ) %>%
+                        left_join(raceLink, by = "re") %>%
+                        left_join(lhj_both) %>%
+                        select(county, city, sex, raceCode, age, population = pop, ratio) 
+
+head(cities_2010census)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r, eval= FALSE, echo=FALSE}
+
+
+# work_p3 <- raw_p3 %>% 
+#              mutate(FIPSCounty = str_sub(fips,2,5),  # extract county part of FIPS code as string
+#                     aMark = findInterval(agerc,ageUpper,left.open = TRUE), # find "age group" 
+#                     ageGroup =  aLabs[aMark]  # label age group                      
+#              ) %>%
+#              left_join(countyLink) %>%  # add data with county names and county codes
+#              left_join(raceLink) %>% # add data with r/e names and codes
+#              group_by(countyName, year, sex, raceNameShort, ageGroup) %>% # group by demographics 
+#              summarise(population = sum(perwt)) %>% ungroup()   %>% # sum population across grouped demographics
+#              filter(year %in% 2010:2020)   # filter to 2010 to 202 for now
+
+
+
+cities_temp <- raw_e4_2010_2020 %>% filter(`COUNTY/CITY` %in% lhj_cities) 
+## hack for now ....
+cities_temp <- cities_temp %>%  select(-1) %>% t() %>% as.data.frame()
+names(cities_temp) <- lhj_cities; rownames(cities_temp) <- c(); cities_temp$year <- 2010:2020
+cities_temp <- pivot_longer(cities_temp,Berkeley:Pasadena, names_to = "city", values_to = "city_pop") %>%
+                  mutate(countyName = ifelse(city == "Berkeley", "Alameda", "Los Angeles"))
+
+
+county_lhj_work <- work_p3 %>% filter(countyName %in% unique(lhj_counties))
+
+
+
+
+
+counties_temp <- county_lhj_work %>%
+                   group_by(countyName,year) %>% summarise(county_pop = sum(population)) %>% ungroup()
+                                    
+
+
+lhj_temp  <- left_join(cities_temp, counties_temp) %>%
+               mutate(city_prop = city_pop/county_pop,
+                      county_prop = 1-city_prop)
+
+more_work <- left_join(county_lhj_work,lhj_temp) %>%
+              mutate(city_population = population * city_prop,
+                     county_population = population * county_prop
+                     )
+
+
+## slight hack for now .....
+more_work_city   <- more_work %>% select(countyName, LHJ=city, year:ageGroup, population=city_population)
+
+more_work_county <- more_work %>% select(county=countyName, LHJ=countyName, year:ageGroup, population=county_population) %>%
+                          group_by(LHJ,year,sex,raceName,ageGroup) %>% summarise(population=sum(population)) %>% ungroup %>%
+                          mutate(LHJ = paste0(LHJ,"_LHJ"))
+
+
+lhj_data <-  work_p3 %>% filter(! countyName %in% unique(lhj_counties)) %>%
+               rename(LHJ = countyName) %>%
+               bind_rows(more_work_city, more_work_county)
+
+check <- lhj_data %>% group_by(LHJ,year) %>% summarise(pop=sum(population))
+
+
+
+
+
+  
+```
+
+
+
+<!-- - E6; estimates of July 1 **county** population for each year of the current decade (typically released in December); and historical estimates by decade (*awkward table format*) -->
+<!-- - E4; January; historical estimates by decade for city, county and state population  -->
+<!-- - E1; January; most recent few years estimates for city, county and state population  -->
+
+
+<!-- **E-1 and E-4 both currently have data for 2021 and 2022** -->
+<!-- "E-4 Population Estimates for Cities, Counties, and the State, 2021-2022 with 2020 Census Benchmark" -->
+<!-- Table 1: E-4 Population Estimates for Counties and State 2021-2022 with 2020 Benchmark			 -->
+
+<!-- COUNTY         4/1/2020    1/1/2021    1/1/2022 -->
+<!-- Alameda       1,682,353   1,662,370   1,651,979  -->
+<!-- Alpine            1,204       1,195       1,200  -->
+<!-- ...    -->
+<!-- Yolo            216,403     217,237     221,165  -->
+<!-- Yuba             81,575      81,988      82,275  -->
+<!-- State Total  39,538,223  39,303,157  39,185,605 -->
+
+
+<!-- "E-1: State/County Population Estimates with Annual Percent Change"   -->
+
+<!-- State/County               1/1/2021    1/1/2022 Change -->
+<!-- California               39,303,157  39,185,605   -0.3 -->
+<!-- Alameda                   1,662,370   1,651,979   -0.6 -->
+<!-- Alpine                        1,195       1,200    0.4 -->
+<!-- ... -->
+<!-- Yolo                        217,237     221,165    1.8 -->
+<!-- Yuba                         81,988      82,275    0.4 -->
+
+
+
+
+
+
+
+

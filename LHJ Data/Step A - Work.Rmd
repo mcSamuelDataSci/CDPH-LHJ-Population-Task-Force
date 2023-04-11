@@ -1,0 +1,311 @@
+---
+title: "Investigating DOF 'Estimates' Files"
+author: "Jaspreet Kang"
+date: "3/27/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readxl)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(lubridate)
+
+# Info Files
+countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
+  select(county = countyName)
+
+```
+
+# Read in DOF 'Estimates' data
+
+```{r}
+
+# E1 File
+e1_2022 <- read_xlsx("E1/E-1_2022_InternetVersion.xlsx", sheet = "E-1 CountyState2022", skip = 4)
+
+# E4 Files
+e4_70_80 <- read_xlsx("E4/E_4-1970-1980.xlsx", skip = 5, col_names = c("Place", "4/1/1970", paste0("1/1/", 1971:1980), "4/1/1980"))
+
+e4_80_90 <- read_xlsx("E4/90E-4.xlsx", skip = 93, col_names = c("County", paste0("1/1/", 1981:1990)))
+
+
+e4_90_00 <- read_xlsx("E4/E-4_90-00_Rpt.xlsx", sheet = "Table 2  City Pop Est", skip = 4, col_names = c("County", "4/1/1990", paste0("1/1/", 1991:2000), "4/1/2000"))
+
+e4_00_10 <- read_xlsx("E4/E4_2000-2010_Report_Final_EOC_000.xlsx", sheet = "Table 2 City County", col_names = c("County", "4/1/2000", paste0("1/1/", 2001:2010), "4/1/2010"), skip = 4)
+
+e4_10_20 <- read_xlsx("E4/E-4_2010-2020-Internet-Version.xlsx", sheet = "Table 2 City County", skip = 2, col_names = c("County", "4/1/2010", paste0("1/1/", 2011:2020)))
+
+e4_20_22 <- read_xlsx("E4/E-4_2022_InternetVersion.xlsx", sheet = "Table 2 City County", skip = 2, col_names = c("County", "4/1/2020", "1/1/2021", "1/1/2022"))
+
+# E6 Files
+e6_47_69 <- read_xlsx("E6/E-6CntyPopEstmts1947-1969.xlsx", skip = 3, 
+                      col_names = c("County", 
+                                    "4/1/1940",
+                                    paste0("7/1/", 1947:1949),
+                                    "4/1/1950", 
+                                    paste0("7/1/", 1950:1959), 
+                                    "4/1/1960", 
+                                    paste0("7/1/", 1960:1969), 
+                                    "4/1/1970"))
+
+
+e6_70_80 <- read_xlsx("E6/E-6_70-90final.xlsx", sheet = "E-6 70-80", skip = 2) %>% 
+  select(County = 1, Year, july1_population = 3)
+
+e6_80_90 <- read_xlsx("E6/E-6_70-90final.xlsx", sheet = "E-6 80-90", skip = 2) %>% 
+  select(County = 1, Year, july1_population = 3)
+
+
+e6_90_00 <- read_xlsx("E6/E-6_90-00.xlsx", skip = 2) %>% 
+  select(County = 1, Year = 2, july1_population = 3)
+
+e6_00_10 <- read_xlsx("E6/E-6_Report_July_2000-2010_updated_with_2010_census.xlsx", skip = 3) %>% 
+  select(County = 1, Year = 2, july1_population = 3)
+  
+e6_10_21 <- read_xlsx("E6/E-6_Report_July_2010-2021_w.xlsx", sheet = "E-6 2010-2021 Report", skip = 3) %>% 
+  select(County = 1, Year = 2, july1_population = 3)
+
+e6_20_22 <- read_xlsx("E6/E-6_Report_July_2020-2022_w.xlsx", sheet = "E-6 2020-2022 Report", skip = 3) %>% 
+  select(County = 1, Year = 2, july1_population = 3)
+
+
+```
+
+### Pasadena and South Pasadena appear in every E4 file. 
+
+# Clean Up Data
+
+```{r}
+
+# Data Processing ------------------------------------------
+
+## E4 - 1970-1980 ---------
+counties <- paste0(countyLink$county, " County")
+
+e4_70_80 <- lapply(counties, function(x) {
+  
+  tDat <- e4_70_80 %>% 
+    filter(grepl("County", Place))
+  
+  countyIndex <- which(tDat$Place == x)
+  tDat[countyIndex, 2:ncol(tDat)] <- tDat[countyIndex + 1, 2:ncol(tDat)]
+  
+  tDat %>% 
+    filter(Place == x)
+  
+}) %>% 
+  bind_rows() %>% 
+  rename(County = Place) %>% 
+  mutate(County = sub("*.County", "", County), 
+         across(.cols = -1, .fns = as.numeric)) %>% 
+  adorn_totals("row", name = "CALIFORNIA")
+  
+## E4 - 1980-1990 ---------
+
+caIndex <- min(which(e4_80_90$County == "CALIFORNIA"))
+e4_80_90 <- e4_80_90[1:caIndex, ] %>% 
+  filter(!is.na(County)) %>% 
+  mutate(across(.cols = -1, .fns = as.numeric))
+
+## E4 - 1990-2000 ---------
+
+e4_90_00 <- e4_90_00 %>% 
+  filter(!is.na(County)) %>% 
+  mutate(County = ifelse(County == "State Total", "CALIFORNIA", County))
+
+
+## E4 - 2000-2010 ---------
+
+e4_00_10 <- e4_00_10 %>% 
+  filter(!is.na(County)) %>% 
+  mutate(County = ifelse(County == "State Total", "CALIFORNIA", County))
+
+
+## E4 - 2010-2020 ---------
+
+e4_10_20 <- e4_10_20 %>% 
+  filter(!is.na(County)) %>% 
+  mutate(County = ifelse(County == "State Total", "CALIFORNIA", County))
+
+
+## E4 - 2020-2022 ---------
+
+e4_20_22 <- e4_20_22 %>% 
+  filter(!is.na(County)) %>% 
+  mutate(County = ifelse(County == "State Total", "CALIFORNIA", County))
+
+# Check for duplicate dates --------
+data.frame(date = c(names(e4_70_80), 
+           names(e4_80_90), 
+           names(e4_90_00), 
+           names(e4_00_10), 
+           names(e4_10_20), 
+           names(e4_20_22)), stringsAsFactors = F) %>% 
+  count(date) %>% 
+  filter(n > 1)
+
+identical(e4_90_00$`4/1/2000`, e4_00_10$`4/1/2000`)
+identical(e4_00_10$`4/1/2010`, e4_10_20$`4/1/2010`)
+
+# E4 - Final ------------
+
+e4_wide <- e4_70_80 %>% 
+  full_join(e4_80_90) %>% 
+  full_join(select(e4_90_00, -`4/1/2000`)) %>% 
+  full_join(select(e4_00_10, -`4/1/2010`)) %>% 
+  full_join(e4_10_20) %>% 
+  full_join(e4_20_22)
+
+e4_long <- e4_wide %>% 
+  pivot_longer(-County, names_to = "Date", values_to = "Population") %>% 
+  mutate(Date = lubridate::mdy(Date))
+
+```
+
+```{r}
+
+# Data Processing Continued ---------------
+
+## E6 - 1947-1969 ---------
+
+e6_47_69 <- e6_47_69 %>% 
+  filter(!is.na(`4/1/1940`)) %>% 
+  mutate(County = ifelse(County == "California", "CALIFORNIA", County)) %>% 
+  select(County, starts_with("7/")) %>% 
+  pivot_longer(-County, names_to = "Year", values_to = "july1_population") %>% 
+  mutate(Year = lubridate::mdy(Year), 
+         Year = year(Year))
+
+# All Other E6 files
+ 
+processData <- function(myData, n = 10) {
+  
+  myData <- myData %>% 
+    filter(!is.na(Year)) %>% 
+    mutate(County = ifelse(County == "California", "CALIFORNIA", County))
+  
+  tList <- lapply(c("CALIFORNIA", countyLink$county), function(x) {
+    countyIndex <- which(myData$County == x)
+    myData[(countyIndex):(countyIndex+n), ] %>% 
+      mutate(County = x)
+  }) %>% 
+    bind_rows() %>% 
+    mutate(july1_population = as.numeric(july1_population))
+    
+  
+  return(tList)
+  
+}
+
+# Check county names --------
+
+setdiff(unique(e6_70_80$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_70_80$County))
+
+setdiff(unique(e6_80_90$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_80_90$County))
+
+setdiff(unique(e6_80_90$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_80_90$County))
+
+setdiff(unique(e6_90_00$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_90_00$County))
+
+setdiff(unique(e6_00_10$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_00_10$County))
+
+setdiff(unique(e6_10_21$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_10_21$County))
+
+setdiff(unique(e6_20_22$County), countyLink$county)
+setdiff(countyLink$county, unique(e6_20_22$County))
+
+# Process data -----------
+e6_70_80 <- processData(e6_70_80, 10) 
+
+e6_80_90 <- processData(e6_80_90, 10) 
+
+e6_90_00 <- processData(e6_90_00, 10) 
+
+e6_00_10 <- processData(e6_00_10, 11) 
+
+e6_10_21 <- processData(e6_10_21, 12) %>% 
+  filter(!grepl("Census", Year)) %>% 
+  mutate(Year = ifelse(Year == "Apr-Jun 2010", "2010", Year), 
+         Year = as.numeric(Year)) 
+
+e6_20_22 <- processData(e6_20_22, 3) %>% 
+  filter(!grepl("Census", Year)) %>% 
+  mutate(Year = ifelse(Year == "Apr-Jun 2020", "2020", Year), 
+         Year = as.numeric(Year))
+
+# Check for duplicates -------------
+
+data.frame(Year = c(unique(e6_47_69$Year),
+                    unique(e6_70_80$Year), 
+                    unique(e6_80_90$Year), 
+                    unique(e6_90_00$Year), 
+                    unique(e6_00_10$Year), 
+                    unique(e6_10_21$Year), 
+                    unique(e6_20_22$Year)), stringsAsFactors = F) %>% 
+  count(Year) %>% 
+  filter(n > 1)
+
+checkIfIdentical <- function(data1, data2, myYear) {
+  
+  data1 <- data1 %>% filter(Year == myYear) %>% arrange(County) 
+  data2 <- data2 %>% filter(Year == myYear) %>% arrange(County)
+  
+  myCheck <- identical(
+    data1, data2
+  )
+  
+  if (myCheck) {
+    print(TRUE)
+  } else {
+    full_join(rename(data1, pop1 = july1_population), 
+              rename(data2, pop2 = july1_population)) %>% 
+      mutate(diff = pop1 - pop2) %>% 
+      View()
+    
+    
+  }
+}
+
+checkIfIdentical(e6_70_80, e6_80_90, 1980)
+checkIfIdentical(e6_80_90, e6_90_00, 1990) # FALSE
+checkIfIdentical(e6_90_00, e6_00_10, 1999)
+checkIfIdentical(e6_90_00, e6_00_10, 2000) # FALSE
+checkIfIdentical(e6_00_10, e6_10_21, 2010) # FALSE
+checkIfIdentical(e6_10_21, e6_20_22, 2020) # FALSE
+checkIfIdentical(e6_10_21, e6_20_22, 2021) # FALSE
+
+# e6 final -----------
+
+e6_long <- e6_47_69 %>% 
+  bind_rows(filter(e6_70_80, Year != 1980)) %>% 
+  bind_rows(filter(e6_80_90, Year != 1990)) %>% 
+  bind_rows(filter(e6_90_00, !Year %in% 1999:2000)) %>% 
+  bind_rows(filter(e6_00_10, Year != 2010)) %>% 
+  bind_rows(filter(e6_10_21, !Year %in% 2020:2021)) %>% 
+  bind_rows(e6_20_22) %>% 
+  rename(Population = july1_population)
+
+table(e6_long$Year, useNA = "ifany")
+colSums(is.na(e6_long))
+
+e6_wide <- e6_long %>% 
+  pivot_wider(names_from = Year, values_from = Population)
+
+```
+
+### E6_2000_2010 has estimates from 1999-2010. The excel spreadsheet says the 2010 Census benchmark is used, but the 2010 populations do not match the populations from the 2010 Census. It seems like DOF retroactively updated their estimates based on the 2010 Census. 
+
+### Decision: Using July 1 E6 DOF estimates over Census estimates for all Decennial years to maintain consistency.
+
+### Decision: Population estimates for most of the overlapping years in these E6 data files are different. Therefore, we are using the most recent estimate (meaning the estimate from the more recent decade)
