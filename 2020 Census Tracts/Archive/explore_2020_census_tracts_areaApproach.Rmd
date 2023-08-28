@@ -1,0 +1,359 @@
+---
+title: "Exploration of 2020 Census Tracts - 2010 to 2020 mapping"
+author: "Jaspreet Kang, Michael Samuel (OPP CDPH)"
+date: "7/5/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(scipen = 999)
+
+if (F) {
+  server <- T
+  if (server) setwd("/mnt/projects/FusionData/OTHER Analyses/2020 Census Tracts/")
+  if (!server) setwd("G:/FusionData/OTHER Analyses/2020 Census Tracts/")
+}
+
+# Load packages -------------------------------------------------------------------------
+
+library(readxl) # Read excel files
+library(readr) # Read csv files
+library(dplyr) # data wrangling
+library(tidyr) # for pivoting
+library(tibble)
+library(tmap) # Creating maps
+library(sf) # Simple features
+library(tigris) 
+
+# Load helpful info files ----------------------------------------------------------------
+
+# county fips to county
+countyLink <- read_xlsx("info/countyLink.xlsx") %>% 
+  select(county = countyName, fips = FIPSCounty)
+
+# Tract 2010 to 2020; downloaded from Census website
+tract10_to_20 <- read_csv("info/tract10_to_tract20.csv") %>% 
+  tibble::rowid_to_column("ID") %>% 
+  mutate(fips20 = substr(GEOID_TRACT_20, 2, 4), 
+         fips10 = substr(GEOID_TRACT_10, 2, 4), 
+         across(starts_with("GEOID"), ~ paste0("0", .x))) %>% 
+  left_join(rename(countyLink, county20 = county), by = c("fips20" = "fips")) %>% 
+  left_join(rename(countyLink, county10 = county), by = c("fips10" = "fips")) 
+
+# Load census TIGER/Line shapefiles using the tigris package
+tract20_tigris <- tracts(state = 06, year = 2020) %>% 
+  select(GEOID)
+tract10_tigris <- tracts(state = 06, year = 2019) %>% 
+  select(GEOID)
+
+
+# Prepare data ----------------------------
+
+# This data frame checks if areas (of land & water) are equivalent for each 2010, 2020 relationship
+tract10_to_20_compareAreas <- tract10_to_20 %>% 
+  select(ID, starts_with("county"), starts_with("GEOID"), starts_with("NAME"), starts_with("AREA")) %>% 
+  mutate(is_equal_areaLand = if_all(c("AREALAND_TRACT_20", "AREALAND_TRACT_10"), `==`, AREALAND_PART), 
+         is_equal_areaWater = if_all(c("AREAWATER_TRACT_20", "AREAWATER_TRACT_10"), `==`, AREAWATER_PART), 
+         totalArea20 = AREALAND_TRACT_20 + AREAWATER_TRACT_20, 
+         totalArea10 = AREALAND_TRACT_10 + AREAWATER_TRACT_10,
+         compareArea = case_when(totalArea20 == totalArea10 ~ "==", 
+                                 totalArea20 > totalArea10 ~ ">", 
+                                 totalArea20 < totalArea10 ~ "<"))
+
+```
+
+# Links:
+
+-   [Census' explanation of the 2020 Census Tract to 2010 Census Tract Relationship File](https://www2.census.gov/geo/pdfs/maps-data/data/rel2020/tract/explanation_tab20_tract20_tract10.pdf)
+
+-   [Download relationship files from Census' website](https://www.census.gov/geographies/reference-files/time-series/geo/relationship-files.2020.html#list-tab-1709067297)
+
+```{r}
+
+length(unique(tract10_to_20$GEOID_TRACT_20))
+length(unique(tract10_to_20$GEOID_TRACT_10)) 
+
+```
+
+
+```{r}
+# 2020 Tracts with only one or multiple relationships -------------------------
+tracts20_nRelationships <- tract10_to_20_compareAreas %>% 
+  count(GEOID_TRACT_20)
+
+tracts20_oneRelationship <- tracts20_nRelationships %>% 
+  filter(n == 1) %>% 
+  pull(GEOID_TRACT_20)
+
+tracts20_multipleRelationships <- tracts20_nRelationships %>% 
+  filter(n > 1) %>% 
+  pull(GEOID_TRACT_20)
+```
+
+# 2020 Tracts with one relationship (only appears once in data)
+
+## Identifying Possibility #1: 2020 Tracts where their boundaries did not change from 2010.
+
+```{r}
+
+identicalTracts <- tract10_to_20_compareAreas %>%
+  filter(GEOID_TRACT_20 %in% tracts20_oneRelationship, 
+         is_equal_areaLand, is_equal_areaWater) %>% 
+  mutate(relationship = "Tract boundaries unchanged") %>% 
+  select(ID, GEOID_TRACT_20, GEOID_TRACT_10, relationship)
+
+identicalTracts_ID <- identicalTracts$ID
+
+# Ensure these tracts appear only once
+length(unique(identicalTracts_ID)) == nrow(identicalTracts) 
+
+
+```
+
+
+## Identifying Possibility #2: 2020 Tract wholly contained within a portion of a 2010 Tract
+
+Steps:
+
+- Filter on 2020 tracts with only one relationship in the data (only occurs once), then
+- Exclude 2020 tracts where boundaries did nor change from 2010 (identified in previous R chunk)
+- Check if total Area of 2020 Tracts < 2010 Tracts, which confirms a 2020 Tract is wholly contained within a portion of a 2010 Tract
+
+```{r}
+
+# Filter on 2020 tracts where boundaries changed from 2010, then Filter on 2020 tracts with only one relationship in the data
+tracts20_whollyIn_portionTracts10 <- tract10_to_20_compareAreas %>% 
+  filter(GEOID_TRACT_20 %in% tracts20_oneRelationship, 
+         !ID %in% identicalTracts_ID 
+         ) 
+
+# Compare total areas -------------------------
+
+# All total areas of 2020 tracts are < 2010 tracts, confirming these tracts are wholly contained within portions of 2010 tracts
+table(tracts20_whollyIn_portionTracts10$compareArea)
+
+tracts20_whollyIn_portionTracts10 <- tracts20_whollyIn_portionTracts10 %>% 
+  mutate(relationship = "2020 Tract wholly contained within a portion of 2010 Tract") %>% 
+  select(ID, GEOID_TRACT_20, GEOID_TRACT_10, relationship)
+  
+tracts20_whollyIn_portionTracts10_ID <- tracts20_whollyIn_portionTracts10$ID
+
+```
+
+```{r}
+# Logic check
+(length(identicalTracts_ID) + length(tracts20_whollyIn_portionTracts10_ID)) == length(tracts20_oneRelationship)
+
+
+```
+
+# 2020 Tracts with Multiple Relationships (appears multiple times in data)
+
+## Possibility #3: Portion of 2020 Tract links to entire 2010 Tract
+
+Steps:
+
+- Filter on 2020 tracts where there are multiple relationships (2020 tract appears multiple times), then
+- From this filtered data, pull 2010 tracts that only appear once, then
+- From the filtered data from first step, filter on 2010 tracts that only appear once
+
+
+```{r}
+
+# Filter on 2020 tracts where there are multiple relationships
+check <- tract10_to_20_compareAreas %>% 
+  filter(GEOID_TRACT_20 %in% tracts20_multipleRelationships)
+
+# Get count of 2010 tracts; pull 2010 tracts such that there is only one relationship
+tracts10_oneRelationship <- check %>% 
+  count(GEOID_TRACT_10) %>% 
+  filter(n == 1) %>% 
+  pull(GEOID_TRACT_10)
+
+tractsPortion20_whollyIn_Tracts10 <- check %>% 
+  filter(GEOID_TRACT_10 %in% tracts10_oneRelationship) %>% 
+  mutate(relationship = "Portion of 2020 Tract links to entire 2010 Tract") %>% 
+  select(ID, GEOID_TRACT_20, GEOID_TRACT_10, relationship)
+  
+
+tractsPortion20_whollyIn_Tracts10_ID <- tractsPortion20_whollyIn_Tracts10$ID
+
+# Logic check ---------------------------------------------------------------------------------
+# So far we've identified
+# - 2020 tracts where boundaries did not change
+# - 2020 tracts wholly contained within portion of 2010
+# - 2010 tracts wholly contained within portion of 2020
+
+length(identicalTracts_ID) + length(tracts20_whollyIn_portionTracts10_ID) + length(tractsPortion20_whollyIn_Tracts10_ID)
+
+allIDs_identified <- c(identicalTracts_ID, tracts20_whollyIn_portionTracts10_ID, tractsPortion20_whollyIn_Tracts10_ID)
+
+length(unique(allIDs_identified)) == length(allIDs_identified)
+
+```
+
+## Possibility #4: Portion of 2020 Tract in Portion of 2010 Tract
+
+```{r}
+# Filter on 2020 tracts where there are multiple relationships
+check <- tract10_to_20_compareAreas %>% 
+  filter(GEOID_TRACT_20 %in% tracts20_multipleRelationships)
+
+# Get count of 2010 tracts; pull 2010 tracts such that there are multiple relationships
+tracts10_multipleRelationships <- check %>% 
+  count(GEOID_TRACT_10) %>% 
+  filter(n > 1) %>% 
+  pull(GEOID_TRACT_10)
+
+tractsPortion20_in_TractsPortion10 <- check %>% 
+  filter(GEOID_TRACT_10 %in% tracts10_multipleRelationships) %>% 
+  mutate(relationship = "Portion of 2020 Tract in portion of 2010 Tract") %>% 
+  select(ID, GEOID_TRACT_20, GEOID_TRACT_10, relationship)
+  
+
+tractsPortion20_in_TractsPortion10_ID <- tractsPortion20_in_TractsPortion10$ID
+
+
+# Logic check ---------------------------------------------------------------------------------
+# We should now have all relationships identified (language below needs more consistency)
+# - 2020 tracts where boundaries did not change
+# - 2020 tracts wholly contained within portion of 2010
+# - Portion of 2020 tract that links to entire 2010 tract
+# - Portion of 2020 tract in portion of 2010 tract
+
+length(identicalTracts_ID) + length(tracts20_whollyIn_portionTracts10_ID) + length(tractsPortion20_whollyIn_Tracts10_ID) + length(tractsPortion20_in_TractsPortion10_ID)
+
+allIDs_identified <- c(identicalTracts_ID, tracts20_whollyIn_portionTracts10_ID, tractsPortion20_whollyIn_Tracts10_ID, tractsPortion20_in_TractsPortion10_ID)
+
+length(unique(allIDs_identified)) == length(allIDs_identified)
+
+
+# All relationships are defined
+finalShort <- bind_rows(identicalTracts, 
+                        tracts20_whollyIn_portionTracts10,
+                        tractsPortion20_whollyIn_Tracts10,
+                        tractsPortion20_in_TractsPortion10) %>% 
+  arrange(ID)
+
+```
+
+## Looking closer into possibility #3 
+
+### EXPLORATORY CODE IN PROGRESS BELOW
+
+```{r}
+
+finalShort <- bind_rows(identicalTracts, 
+                        tracts20_whollyIn_portionTracts10,
+                        tractsPortion20_whollyIn_Tracts10,
+                        tractsPortion20_in_TractsPortion10) %>% 
+  arrange(ID)
+
+# Should be no duplicate IDs
+anyDuplicated(finalShort$ID)
+
+geoids_p3 <- tractsPortion20_whollyIn_Tracts10 %>% 
+  pull(GEOID_TRACT_20) %>% 
+  unique()
+
+
+
+check_p3 <- lapply(geoids_p3, function(x) {
+  
+  tDat <- finalShort %>% 
+    filter(GEOID_TRACT_20 %in% x)
+  
+  if ( all(tDat$relationship == "Portion of 2020 Tract links to entire 2010 Tract") ) {
+    tDat %>% 
+      mutate(relationship = "2010 Tracts aggregate up to 2020 Tract")
+  } else {
+    tDAt
+  }
+  
+  
+}) 
+  
+
+
+
+```
+
+# Final dataset with all relationships identified
+
+```{r}
+
+
+final <- tract10_to_20 %>% 
+  left_join(finalShort, by = c("ID", "GEOID_TRACT_20", "GEOID_TRACT_10")) %>% 
+  select(-c("ID", "fips20", "fips10"))
+
+# No NAs should exist in relationship column
+colSums(is.na(final))
+
+
+table(finalShort$relationship, useNA = "ifany")
+
+```
+
+
+# Maps
+
+```{r}
+
+group_by_custom <- function(.data, myNewCol, ...) {
+  .data %>% 
+    group_by(...) %>% 
+    mutate(!!as.symbol(myNewCol) := n()) %>% 
+    ungroup() 
+}
+
+tDat <- final %>% 
+  group_by_custom(myNewCol = "nTracts20", GEOID_TRACT_20) %>% 
+  group_by_custom(myNewCol = "nTracts10", GEOID_TRACT_10) %>% 
+  group_by_custom(myNewCol = "nRel20", GEOID_TRACT_20, relationship) %>% 
+  group_by_custom(myNewCol = "nRel10", GEOID_TRACT_10, relationship) %>% 
+  mutate(relationship2 = case_when(nTracts20 != nRel20 ~ ">1 relationship", 
+                                   nTracts10 != nRel10 ~ ">1 relationship", 
+                                   TRUE ~ relationship)) %>% 
+  select(starts_with("GEOID"), starts_with("county"), starts_with("relationship"))
+
+
+countyMap <- function(myCounty) {
+  
+  tDat <- tDat %>% 
+    filter(county10 == myCounty, county20 == myCounty)
+  
+  tDat10 <- tDat %>% 
+    select(GEOID = GEOID_TRACT_10, relationship2) %>% 
+    distinct(GEOID, .keep_all = TRUE)
+  mDat10 <- tract10_tigris %>% 
+    right_join(tDat10)
+  
+  tDat20 <- tDat %>% 
+    select(GEOID = GEOID_TRACT_20, relationship2) %>% 
+    distinct(GEOID, .keep_all = TRUE)
+  mDat20 <- tract20_tigris %>% 
+    right_join(tDat20)
+  
+  map10 <- tm_shape(mDat10) +
+    tm_polygons("relationship2", border.col = "blue", lwd = 1) +
+    tm_layout(title = "2010 Tracts")
+  
+  map20 <- tm_shape(mDat20) +
+    tm_polygons("relationship2", border.col = "blue", lwd = 1) +
+    tm_layout(title = "2020 Tracts")
+  
+  tmap_mode("view")
+  tmap_arrange(map10, map20, ncol = 1, sync = TRUE)
+  
+
+}
+
+countyMap("Yolo")
+
+
+
+```
+

@@ -1,0 +1,309 @@
+---
+title: "Exploration of 2020 Census Tracts - 2010 to 2020 mapping"
+author: "Jaspreet Kang, Shuo Chen, Michael Samuel (OPP CDPH)"
+date: "7/5/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+
+options(scipen = 999)
+
+if (F) {
+  server <- T
+  if (server) setwd("/mnt/projects/FusionData/OTHER Analyses/2020 Census Tracts/")
+  if (!server) setwd("G:/FusionData/OTHER Analyses/2020 Census Tracts/")
+}
+
+# Load packages -------------------------------------------------------------------------
+
+library(readxl) # Read excel files
+library(readr) # Read csv files
+library(dplyr) # data wrangling
+library(tidyr) # for pivoting
+library(tibble)
+library(tmap) # Creating maps
+library(sf) # Simple features
+library(tigris) 
+library(readr)
+
+# Load helpful info files ----------------------------------------------------------------
+
+# county fips to county
+countyLink <- read_xlsx("info/countyLink.xlsx") %>% 
+  select(county = countyName, fips = FIPSCounty)
+
+# Tract 2010 to 2020; downloaded from Census website
+tract10_to_20 <- read_csv("info/tract10_to_tract20.csv") %>% 
+  tibble::rowid_to_column("ID") %>% 
+  mutate(fips20 = substr(GEOID_TRACT_20, 2, 4), 
+         fips10 = substr(GEOID_TRACT_10, 2, 4), 
+         across(starts_with("GEOID"), ~ paste0("0", .x))) %>% 
+  left_join(rename(countyLink, county20 = county), by = c("fips20" = "fips")) %>% 
+  left_join(rename(countyLink, county10 = county), by = c("fips10" = "fips")) 
+
+# Load census TIGER/Line shapefiles using the tigris package
+tract20_tigris <- tracts(state = 06, year = 2020) %>% 
+  select(GEOID)
+tract10_tigris <- tracts(state = 06, year = 2019) %>% 
+  select(GEOID)
+
+
+# Prepare data ----------------------------
+
+# This data frame checks if areas (of land & water) are equivalent for each 2010, 2020 relationship
+tract10_to_20_compareAreas <- tract10_to_20 %>% 
+  select(ID, starts_with("county"), starts_with("GEOID"), starts_with("NAME"), starts_with("AREA")) %>% 
+  mutate(is_equal_areaLand = if_all(c("AREALAND_TRACT_20", "AREALAND_TRACT_10"), `==`, AREALAND_PART), 
+         is_equal_areaWater = if_all(c("AREAWATER_TRACT_20", "AREAWATER_TRACT_10"), `==`, AREAWATER_PART), 
+         totalArea20 = AREALAND_TRACT_20 + AREAWATER_TRACT_20, 
+         totalArea10 = AREALAND_TRACT_10 + AREAWATER_TRACT_10,
+         compareArea = case_when(totalArea20 == totalArea10 ~ "==", 
+                                 totalArea20 > totalArea10 ~ ">", 
+                                 totalArea20 < totalArea10 ~ "<"))
+
+```
+
+### Links:
+
+-   [Census' explanation of the 2020 Census Tract to 2010 Census Tract Relationship File](https://www2.census.gov/geo/pdfs/maps-data/data/rel2020/tract/explanation_tab20_tract20_tract10.pdf)
+
+-   [Download relationship files from Census' website](https://www.census.gov/geographies/reference-files/time-series/geo/relationship-files.2020.html#list-tab-1709067297)
+
+-   [2020 Census Tract to 2010 Census Tract Relationship File Layout](https://www.census.gov/programs-surveys/geography/technical-documentation/records-layout/2020-comp-record-layout.html#tract)
+
+```{r}
+
+length(unique(tract10_to_20$GEOID_TRACT_20))
+length(unique(tract10_to_20$GEOID_TRACT_10)) 
+
+```
+
+
+
+#### Creating categories for relationship between 2010 census tracts and 2020 census tracts
+##### Generating intermediate variables
+```{r}
+## Census tract with the same GEOID_TRACT from 2010 to 2020
+tract10_to_20_cat <- tract10_to_20_compareAreas %>% 
+  mutate(same_tract_id = (GEOID_TRACT_20 == GEOID_TRACT_10)) %>% 
+  arrange(GEOID_TRACT_20, GEOID_TRACT_10)
+
+## Number of appearances of GEOID_TRACT_20
+tract10_to_20_cat <- tract10_to_20_cat %>% 
+  group_by(GEOID_TRACT_20) %>% 
+  mutate(n_tract_20 = n()) %>% 
+  ungroup()
+
+## Number of appearances of GEOID_TRACT_10
+tract10_to_20_cat <- tract10_to_20_cat %>% 
+  group_by(GEOID_TRACT_10) %>% 
+  mutate(n_tract_10 = n()) %>% 
+  ungroup()
+
+## Binary variables of whether n_tract_10/20 == 1
+tract10_to_20_cat <- tract10_to_20_cat %>% 
+  mutate(n_tract_20_eq1 = (n_tract_20 == 1), 
+         n_tract_10_eq1 = (n_tract_10 == 1))
+
+```
+
+#####  Four categories of relationship between 2010 census tracts and 2020 census tracts:
+*Unchanged*: 2010 tract remained the same in 2020 (1 to 1)  
+*Split*: one 2010 tract split into multiple 2020 tracts (1 to n)  
+*Merge*: multiple 2010 tracts merged into one 2020 tract (n to 1)  
+*Split and Merge*: one 2010 tracts split into multiple parts. One part merged with other 2010 tracts (or part of them) to form one 2020 tract (n to n)
+
+|tract_change_cat  | n_tract_10  | n_tract_20  | compareArea (2020 - 2010) |
+|:-----------------|:------------|:------------|:--------------------------|
+|Unchanged         | = 1         | = 1         | ==                        |
+|Split             | > 1         | = 1         | <                         |
+|Merge             | = 1         | > 1         | >                         |
+|Split and Merge   | > 1         | > 1         | Don't know                |  
+
+**Tomás' feedback**: my first thought is relaxing the criteria to determine if CTs are different. As noted in the Modoc County example, those CTs are functionally equivalent. Georectification may have resulted in small differences but they look like they are > 99.9% match and therefore could be considered the same. In the Ventura County example, I think there are some artifacts resulting from shared borders (data issue and/or georectification); this seems to be the case with the 2020 LA County CT in that example, which I don’t think should be considered as a modification of the 2010 Ventura County CT.
+
+I don’t have a coding solution in mind, but you could try using spatial operations to remove the boundaries and/or check for matching over some threshold. Then you can pick out the CTs that are very different.
+
+
+```{r}
+tract10_to_20_cat <- tract10_to_20_cat %>% 
+  mutate(tract_change_cat = 
+           case_when(
+             n_tract_10_eq1 & n_tract_20_eq1 ~ "Unchanged",
+             !n_tract_10_eq1 & n_tract_20_eq1 ~ "Split",
+             n_tract_10_eq1 & !n_tract_20_eq1 ~ "Merge",
+             !n_tract_10_eq1 & !n_tract_20_eq1 ~ "Split and Merge"
+           ))
+
+tract10_to_20_cat_final <- tract10_to_20_cat %>% 
+  select(c(2:7, 18:21, 24))
+
+## Output the relationship file with the tract change category as a csv file
+write.csv(tract10_to_20_cat_final, file = "tract10_to_20_cat.csv", row.names = FALSE)  
+
+
+## Summarize the number of relationships (not tracts) by tract change category
+tract10_to_20_cat_final %>% 
+  group_by(tract_change_cat) %>% 
+  summarize(n = n())
+```
+
+
+
+```{r, include=FALSE}
+#### Check the relationship between 2020 tract size and the corresponding 2010 tract size
+## Unchanged
+tract10_to_20_cat_final %>% 
+  filter(tract_change_cat == "Unchanged") %>% 
+  group_by(compareArea) %>% 
+  summarize(n = n())
+
+## Merge
+tract10_to_20_cat_final %>% 
+  filter(tract_change_cat == "Merge") %>% 
+  group_by(compareArea) %>% 
+  summarize(n = n())
+
+## Split
+tract10_to_20_cat_final %>% 
+  filter(tract_change_cat == "Split") %>% 
+  group_by(compareArea) %>% 
+  summarize(n = n())
+
+## Split and Merge
+tract10_to_20_cat_final %>% 
+  filter(tract_change_cat == "Split and Merge") %>% 
+  group_by(compareArea) %>% 
+  summarize(n = n())
+
+
+
+tract10_to_20_cat_final %>% 
+  filter(tract_change_cat == "Unchanged") %>% 
+  group_by(same_tract_id, compareArea) %>% 
+  summarize(n = n())
+
+
+## -------------------- Exceptions --------------------
+## Unchanged tracts, but with a different tract id
+tract_diff_id <- tract10_to_20_cat %>% 
+  filter(tract_change_cat == "Unchanged", !same_tract_id)
+
+## Unchanged tract with a smaller area. An exception to the expectation that unchanged tract has the same size
+tract_smaller_area <- tract10_to_20_cat %>% 
+  filter(tract_change_cat == "Unchanged", compareArea == "<")
+
+## Census tracts that belong to different counties between 2010 and 2020. Need to investigate...
+tract10_to_20_diff_cnty <- tract10_to_20 %>% 
+  filter(fips10 != fips20) %>% 
+  select(fips20, fips10, county20, county10, everything(), -ID) %>% 
+  arrange(GEOID_TRACT_20, GEOID_TRACT_10)  
+```
+
+
+### Maps
+  
+#### Investigating Census tracts that belong to different counties between 2010 and 2020  
+There are 152 records in the relationship file that link 2020 census tracts with 2010 census tracts from a different county. Below is one example that shows one 2010 Ventura census tract linked with census tracts in Ventura, Los Angeles, and Kern in 2020. We haven't had a chance to dive deeper into this yet.  
+
+```{r, include=FALSE}
+# Looking at one tract in Ventura
+tDat <- tract10_to_20_cat %>% 
+  filter(GEOID_TRACT_10 == "06111000100")
+
+map20_data <- tract20_tigris %>% 
+  right_join(tDat, by = c("GEOID" = "GEOID_TRACT_20"))
+
+map10_data <- tract10_tigris %>% 
+  right_join(tDat, by = c("GEOID" = "GEOID_TRACT_10"))
+
+
+map10 <- tm_shape(map10_data) + 
+  tm_basemap(c(StreetMap = "OpenStreetMap", TopoMap = "OpenTopoMap")) +
+  tm_polygons("county10", border.col = "blue", lwd = 1) +
+  tm_layout(title = "2010 Tracts")
+  
+map20 <- tm_shape(map20_data) +
+  tm_basemap(c(StreetMap = "OpenStreetMap", TopoMap = "OpenTopoMap")) +
+  tm_polygons("county20", border.col = "blue", lwd = 1) +
+  tm_layout(title = "2020 Tracts")
+  
+tmap_mode("view")
+```
+
+```{r}
+tmap_arrange(map10, map20, ncol = 2, sync = TRUE)
+```  
+  
+
+
+#### Investigating unchanged tracts with a different tract id
+Four census tracts remain unchanged from 2010 to 2020, but got assigned a different tract id in 2020. Below shows three of those four census tracts located in Los Angeles County. 
+```{r, include=FALSE}
+# Looking at 3 tracts in Los Angeles
+tDat <- tract_diff_id %>% 
+  filter(county20 != "Kings")
+
+map20_data <- tract20_tigris %>% 
+  right_join(tDat, by = c("GEOID" = "GEOID_TRACT_20"))
+
+map10_data <- tract10_tigris %>% 
+  right_join(tDat, by = c("GEOID" = "GEOID_TRACT_10"))
+
+
+map10 <- tm_shape(map10_data) +
+  tm_basemap(c(StreetMap = "OpenStreetMap", TopoMap = "OpenTopoMap")) +
+  tm_polygons("county10", border.col = "blue", lwd = 1) +
+  tm_layout(title = "2010 Tracts")
+  
+map20 <- tm_shape(map20_data) +
+  tm_basemap(c(StreetMap = "OpenStreetMap", TopoMap = "OpenTopoMap")) +
+  tm_polygons("county20", border.col = "blue", lwd = 1) +
+  tm_layout(title = "2020 Tracts")
+  
+tmap_mode("view")
+ 
+```
+
+
+```{r}
+tmap_arrange(map10, map20, ncol = 2, sync = TRUE) 
+```  
+
+  
+#### Investigating unchanged tract with a smaller area  
+One census tract had a slightly smaller area in 2020 than it was in 2010. It's difficult to tell the difference visually.  
+```{r, include=FALSE}
+
+tDat <- tract_smaller_area
+
+map20_data <- tract20_tigris %>% 
+  right_join(tDat, by = c("GEOID" = "GEOID_TRACT_20"))
+
+map10_data <- tract10_tigris %>% 
+  right_join(tDat, by = c("GEOID" = "GEOID_TRACT_10"))
+
+
+map10 <- tm_shape(map10_data) +
+  tm_basemap(c(StreetMap = "OpenStreetMap", TopoMap = "OpenTopoMap")) +
+  tm_polygons("county10", border.col = "blue", lwd = 1) +
+  tm_layout(title = "2010 Tracts")
+  
+map20 <- tm_shape(map20_data) +
+  tm_basemap(c(StreetMap = "OpenStreetMap", TopoMap = "OpenTopoMap")) +
+  tm_polygons("county20", border.col = "blue", lwd = 1) +
+  tm_layout(title = "2020 Tracts")
+  
+tmap_mode("view")
+```
+
+
+```{r}
+tmap_arrange(map10, map20, ncol = 2, sync = TRUE)  
+```
+

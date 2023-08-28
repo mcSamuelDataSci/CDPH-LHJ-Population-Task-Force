@@ -10,52 +10,266 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, tidy= TRUE)
 
 ```
 
+```{r}
 
-<br> 
+###  TO DO
 
-TO DO
 
-- generalize for any counties use with their cities; documentation; make it clear and easy!!
+#  generalize for any counties use with their cities; documentation; make it clear and easy!!
+#  Census Day is April 1 -- why?
+#  WHY does DOF generate January 1 AND July 1 estimates?
+#  generalize LHJ code below for cities in any selected county
+#  process historic files in one .rmd or script?
+#  add something to documentation regarding "date access" -- perhaps in a seperate file?
+#  ACS does have Age3 by race and sex in the B01 series tables, Samuel, Michael@CDPH; use instead of Census Data??
+```
 
+# Big Picture
+
+## Generate **LHJ total** Population Data Set(s)
+
+Data Sources:
+-   *County July 1* total population (DOF-E6)
+-   *City and county January 1* total population (DOF-E4)
+
+BECAUSE *July 1* is the standard rather than January 1 data, and because LHJ city data are needed:
+
+CALCULATE: Apply LHJ *city/county proportions* in DOF-E4 to county numbers in DOF-E6 to obtain *July 1 LHJ total* population estimates --\> LHJ-POP [Step 1 file]
 
 <br>
 
- Process
 
 
-- A   obtain (DOF) data on (mid-year) **county** population by year; standardize
+## Generate **LHJ Age-Race-Sex** (A-R-S) Population Data Set(s)
 
-- B   obtain (DOF) data on **city** population by year; standardize
+Data Sources:
 
-- C1  calculate proportions of the LHJ cities in respective counties by year
-- C2  generate table of LHJ **and** county population by year
-- C3  ***share table***
+-   *County July 1 age-race-sex* population (DOF-P3)
+-   US *census* age-race-sex for cities and counties (Census-ARS)
+-   as above for LHJ totals
 
-- D   obtain (DOF) **county** by age (single years) by race/ethnicity by sex by year population; standardize
+BECAUSE county totals from DOF *estimates* (e.g. E6) are more accurate than county totals from *projections* (e.g. P3) adjust DOF-P3 total county numbers to be the same as county DOF-E6 *totals*
 
-- E   obtain (US Census) data on **city** by age (single years) by race **by** ethnicity data by sex for **decennial census years**; standardize
+CALCULATE: apply ratio of (DOF-E6 county total) : (DOF-P3 county total) to each county A-R-S value in DOF-P3 [Step 2 file]
 
-- F1  based on C3, D, and E: calculate LHJ **and** county age (single years) by race/ethnicity by sex by year population  
-- F1a
-- F1b
-- F2  generate and ***share table***  and aggregated table(s)
+BECAUSE DOF-P3 is for counties only, and LHJ cites are needed, use US census city and county data to extrapolate DOF-P3 to cities
+
+CALCULATE: Apply LHJ city/county A-R-S proportions from Census-ARS to (adjusted) A-R-S county numbers in DOF-P3 to obtain LHJ A-R-S population estimates --\> LHJ-ARS-POP [step 2 file]
+
+
+proportion = berkeley # / alameda # for each ARS
+
+proportion * DOF_p3_adj # 
+
+
+
+
+
+
+########################################### 
+DELETE THIS STUFF -- general should be above, detail below
+
+## To generate *LHJ total* populations
+
+Data: *County July 1* total population (DOF-E6) [ [clean historical [through 2009] step 0 file]; join to 2010-2019 and 2020+ in Step 1 file]
+
+Data: *City and county January 1* total population (DOF-E4) [ [clean historical [through 2009] step 0 file]; join to 2010-2019 and 2020+ in Step 1 file]
+
+Calculate: Apply LHJ *city/county proportions* in DOF-E4 to county numbers in DOF-E6 to obtain *July 1 LHJ total* population estimates --\> LHJ-POP [Step 1 file]
+
+## To generate *LHJ age-race-sex* (A-R-S) populations
+
+Data: County July 1 age-race-sex population (DOF-P3) [ [clean historical [2000-2009, (and 2010-2019 eventually)] step 0 file]; join to current 2010-2060 in Step 2 file]
+
+Data: US census age-race-sex for cities and counties (Census-ARS) [ 2000? (step 0?), 2010 (step 0?), 2020 step 2(a?)]
+
+[maybe] (adjust DOF-P3 numbers such that county *totals* are the same as county *totals* from DOF-E6; because county totals from DOF estimates (e.g. E6) are more accurate than county totals from projections (e.g. P3)) Calculate: apply ratio of (DOF-E6 county total) : (DOF-P3 county total) to each county A-R-S value in DOF-P3 [Step 2 file]
+
+Calculate: Apply LHJ city/county A-R-S proportions from Census-ARS to (adjusted) A-R-S county numbers in DOF-P3 to obtain LHJ A-R-S population estimates --\> LHJ-ARS-POP [step 2 file]
+########################################### 
+
+# TOTAL LHJ POPULATION STEPS
+
+-   A - Obtain data on (mid-year) **county** population by year
+
+    -   Use DOF E6 files - these files have county-level estimates of July 1 population, and are generally released in December of the respective year
+
+    -   **One time** download of multiple historical data files, 1947 to 2019
+
+        -   Process, standardize and aggregate (A0)
+        -   Save historical file as county.pop.historical (A0)
+
+    -   Current data processing
+
+        -   Download 2020 through current data
+        -   Process, standardize and aggregate (A1)
+
+    -   Combine current and historical data (A1)
+
+        -   Save as county_July_pop (A1)
+
+-   B - Obtain data on (mid-year) city, LHJ, county population by year
+
+    -   For first step, use DOF E4 files -- these files have city-level estimates, as well as county-level estimates, of January 1 population, and are generally released in May of the respective year
+
+    -   **One time** download of multiple historical files, 19XX to 20XX
+
+        -   Process, standardize and aggregate (A0)
+
+        -   Save historical file as city.pop.historical (A0)
+
+    -   Download 2020 through current data
+
+        -   Process, standardize and aggregate (A1)
+
+    -   Combine current and historical data into city_county_January_pop
+
+        -   **Calculate proportions** of the LHJ cities in respective counties by year
+
+    -   For this step the mid-year county population size estimates are joined with the January city proportion estimates, to calculate mid-year city population estimates
+
+        -   Join county.pop and city_county_January_pop
+
+        -   **Calculate July LHJ population**
+
+        -   Save as **LHJ_county_pop**
+
+
+
+
+
+    ------------------------------------------------------------------------
+
+# AGE-RACE-SEX LHJ POPULATION STEPS
+
+
+-   1 obtain data on (mid-year) county population by age by race/ethnicity by sex by year population
+
+    -   Use DOF P3 files - these files have county-level **projections** of July 1 population by age (single years), race, and sex, and are generally released in XXX of the respective year
+
+ -   **One time** download of multiple historical data files, XXX to XXX
+
+        -   Process, standardize and aggregate (A0)
+        -   Save historical file as county.ARS.pop.historical (A0)
+
+
+-   current year
+    download
+    process
+    merge
+    save clean county ARS for all years (DOF-P3-All-Years)
+
+
+
+-  2 Obtain US Census (or ACS) data on city and county by age by race/ethncity by sex population -- 2010, 2020, 
+
+    -   DOF -
+
+    -   one time for historical
+
+        -   download
+
+        -   standardize race/ethnicity, sex, age, year; filter to year subset
+
+        -   combine and save
+
+    -   current county ARS
+
+
+- 3 Process
+
+   - calculate ratio of (DOF-E6 county total) : (DOF-P3 county total) to each county A-R-S value in 
+   - apply ratio to each corresponding row/strata DOF-P3-All-Years (keep "original pop" and "pop")
+   - save as LHJ_county_pop
+
+   - calculate proportion of (LHJ) cites ARS pop in census data to ARS pop in corresponding counties
+
+   - apply proportions to LHJ_county_pop and save as **LHJ_county_pop**
+
+
+
+
+
+
+
+
+
+
+
+
+
+########################################### 
+DELETE THIS STUFF -- old
+
+covert to July 1 by July 1 to January 1 ratio per above
+
+THEN, census to get city???
+
+-   Obtain ARS census data from each decade for cities and counties
+
+    -   year 20XX forward
+
+        -   download, standardize
+
+        -   combine with historical and save
+
+-   E obtain (US Census) data on **city** by age (single years) by race **by** ethnicity data by sex for **decennial census years**; standardize
+
+-   F1 based on C3, D, and E: calculate LHJ **and** county age (single years) by race/ethnicity by sex by year population\
+
+-   F1a
+
+-   F1b
+
+-   F2 generate and ***share table*** and aggregated table(s)
+
+Data Quality Assessment and Review
+
+-   compare ? county population estimates from main source ()
+
+proc sql;
+
+    create table city_ars as
+
+    select b.LHJ as COUNTY format \$15., b.YEAR, a.SEX, a.AGE, a.RE, a.RATIO\*b.POP as POP
+
+    from std.cities_2000census as a
+
+    INNER JOIN all.july1est_1947_cy (where=(year\<2010)) as b
+
+    on a.city = b.lhj
+
+    union
+
+    select b.LHJ as COUNTY format \$15., b.YEAR, a.SEX, a.AGE, a.RE, a.RATIO\*b.POP as POP
+
+    from std.cities_2010census as a
+
+    INNER JOIN all.july1est_1947_cy (where=(year\>=2010)) as b
+
+    on a.city = b.lhj;
+
+quit;
+#####################################################################
+
+
 
 
 <br><br>
 
+-   Notes:
 
+    -   Notes related to "E":
 
--  Notes:
-   - Notes related to "E": 
-     - is census going to release this? when? and/or is this impacted by differential privacy? 
-     - PCT12 and PCT12A, PCT12B, PCT12C, etc., are the single years of age tables by race by ethnicity
-     - Based on the [2020 Census Data Products Planning Crosswalk](https://www2.census.gov/programs-surveys/decennial/2020/program-management/data-product-planning/2010-demonstration-data-products/2020-census-data-products-planning-crosswalk.xlsx), data comparable to PCT12 from 2010 Census Summary File 2 is proposed to be included in the 2020 Demographic and Housing Characteristics File (DHC) but not the 2020 Detailed DHC. If I'm reading it correctly.
+        -   is census going to release this? when? and/or is this impacted by differential privacy?
+        -   PCT12 and PCT12A, PCT12B, PCT12C, etc., are the single years of age tables by race by ethnicity
+        -   Based on the [2020 Census Data Products Planning Crosswalk](https://www2.census.gov/programs-surveys/decennial/2020/program-management/data-product-planning/2010-demonstration-data-products/2020-census-data-products-planning-crosswalk.xlsx), data comparable to PCT12 from 2010 Census Summary File 2 is proposed to be included in the 2020 Demographic and Housing Characteristics File (DHC) but not the 2020 Detailed DHC. If I'm reading it correctly.
 
-   -  Need to add notes regarding equivalency of files generate here to frozen historical "STD" files
-   -  Great "customer support" from Census Bureau Training and Outreach Program 
+    -   Need to add notes regarding equivalency of files generate here to frozen historical "STD" files
+
+    -   Great "customer support" from Census Bureau Training and Outreach Program
 
 <br><br>
-
 
 Load packages, read demographic standards, make constants
 
@@ -85,7 +299,6 @@ lhj_both     <- bind_cols(county = lhj_counties, city = lhj_cities)
 
 ```
 
-
 <br><br>
 
 A (DOF E6 files)
@@ -95,7 +308,6 @@ A (DOF E6 files)
 <br><br>
 
 B (DOF E4 files)
-
 
 ```{r}
 # City and County total population estimates: 2020 Census Benchmark (April) and 2021-2022 estimates (January)
@@ -107,7 +319,6 @@ raw_e4_2010_2020 <- read_xlsx("E4/E-4_2010-2020-Internet-Version.xlsx", sheet = 
                       select(-starts_with("Column"))
 ```
 
-
 <br><br>
 
 C
@@ -116,13 +327,11 @@ C
 
 D (DOF P3 files)
 
-
 source:
 
- - https://dof.ca.gov/forecasting/demographics/projections/
+-   <https://dof.ca.gov/forecasting/demographics/projections/>
 
- - https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/P3_Complete.zip
-
+-   <https://dof.ca.gov/wp-content/uploads/sites/352/Forecasting/Demographics/Documents/P3_Complete.zip>
 
 Read and Process raw DOF "P3" with standard-ish names and summarized by demographics
 
@@ -141,17 +350,9 @@ work_p3 <- raw_p3 %>%
 head(work_p3)
 ```
 
-
-
-
-
-
-
-
 <br><br>
 
 E (decennial census files; using STDCB data for now)
-
 
 ```{r}
 
@@ -169,15 +370,6 @@ head(cities_2010census)
 
 
 ```
-
-
-
-
-
-
-
-
-
 
 ```{r, eval= FALSE, echo=FALSE}
 
@@ -245,40 +437,44 @@ check <- lhj_data %>% group_by(LHJ,year) %>% summarise(pop=sum(population))
   
 ```
 
-
-
 <!-- - E6; estimates of July 1 **county** population for each year of the current decade (typically released in December); and historical estimates by decade (*awkward table format*) -->
+
 <!-- - E4; January; historical estimates by decade for city, county and state population  -->
+
 <!-- - E1; January; most recent few years estimates for city, county and state population  -->
 
-
 <!-- **E-1 and E-4 both currently have data for 2021 and 2022** -->
+
 <!-- "E-4 Population Estimates for Cities, Counties, and the State, 2021-2022 with 2020 Census Benchmark" -->
-<!-- Table 1: E-4 Population Estimates for Counties and State 2021-2022 with 2020 Benchmark			 -->
+
+<!-- Table 1: E-4 Population Estimates for Counties and State 2021-2022 with 2020 Benchmark          -->
 
 <!-- COUNTY         4/1/2020    1/1/2021    1/1/2022 -->
-<!-- Alameda       1,682,353   1,662,370   1,651,979  -->
-<!-- Alpine            1,204       1,195       1,200  -->
-<!-- ...    -->
-<!-- Yolo            216,403     217,237     221,165  -->
-<!-- Yuba             81,575      81,988      82,275  -->
-<!-- State Total  39,538,223  39,303,157  39,185,605 -->
 
+<!-- Alameda       1,682,353   1,662,370   1,651,979  -->
+
+<!-- Alpine            1,204       1,195       1,200  -->
+
+<!-- ...    -->
+
+<!-- Yolo            216,403     217,237     221,165  -->
+
+<!-- Yuba             81,575      81,988      82,275  -->
+
+<!-- State Total  39,538,223  39,303,157  39,185,605 -->
 
 <!-- "E-1: State/County Population Estimates with Annual Percent Change"   -->
 
 <!-- State/County               1/1/2021    1/1/2022 Change -->
+
 <!-- California               39,303,157  39,185,605   -0.3 -->
+
 <!-- Alameda                   1,662,370   1,651,979   -0.6 -->
+
 <!-- Alpine                        1,195       1,200    0.4 -->
+
 <!-- ... -->
+
 <!-- Yolo                        217,237     221,165    1.8 -->
+
 <!-- Yuba                         81,988      82,275    0.4 -->
-
-
-
-
-
-
-
-
