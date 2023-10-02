@@ -376,7 +376,8 @@ detailed_re_pums <- readRDS("data in/rawPUMS_detailedRE_age.RDS")
 # Process data
 detailed_re_pums_survey <- to_survey(detailed_re_pums)
 
-detailed_re <- detailed_re_pums_survey %>%
+# Detailed RE by Age -----------------------------------------------------
+detailed_re_age <- detailed_re_pums_survey %>%
   mutate(ageGroup = cut(AGEP, breaks = c(0, 1, seq(5, 85, by = 10), 199), include.lowest = T, right = F, 
                         labels = c("0", "1 - 4", "5 - 14", "15 - 24", "25 - 34", "35 - 44", "45 - 54", "55 - 64", "65 - 74", "75 - 84", "85+")),
          detailedRE = ifelse(HISP_label == "Not Spanish/Hispanic/Latino", as.character(RAC2P_label), as.character(HISP_label)), 
@@ -387,20 +388,30 @@ detailed_re <- detailed_re_pums_survey %>%
                               "American Indian and Alaska Native tribes specified; or American Indian or Alaska Native, not specified and no other races") ~ "American Indian/Alaska Native", 
            TRUE ~ as.character(RAC1P_label)
          )
-    ) %>%
+  )
+
+detailed_re_age_survey <- detailed_re_age %>% 
   survey_count(ageGroup, detailedRE, reGroup, name = "population", vartype = "ci")
 
 # Verify data - Check total population
-sum(detailed_re$population)
+sum(detailed_re_age_survey$population)
 # Matches total CA population estimate in PUMS (https://www.census.gov/programs-surveys/acs/microdata/documentation.2019.html#list-tab-DO3IVWNQPH4UCXIU03)
 
+# Detailed RE ----------------------------------------------------
+detailed_re_survey <- detailed_re_age %>% 
+  survey_count(detailedRE, reGroup, name = "population", vartype = "ci")
 
+# Verify data - Check total population
+sum(detailed_re_survey$population)
+# Matches total CA population estimate in PUMS (https://www.census.gov/programs-surveys/acs/microdata/documentation.2019.html#list-tab-DO3IVWNQPH4UCXIU03)
+  
 
 # Save processed data
-saveRDS(detailed_re, "data in/CA_pop_detailed_RE_age.RDS")
+saveRDS(detailed_re_age_survey, "data in/CA_pop_detailed_RE_age.RDS")
+saveRDS(detailed_re_survey, "data in/CA_pop_detailed_RE.RDS")
 
-write.csv(detailed_re, "data out/ca_pop_detailed_RE_age_pums.csv", row.names = FALSE)
-write.csv(detailed_re, "data out/ca_pop_detailed_RE_pums.csv", row.names = FALSE)
+write.csv(detailed_re_age_survey, "data out/ca_pop_detailed_RE_age_pums.csv", row.names = FALSE)
+write.csv(detailed_re_survey, "data out/ca_pop_detailed_RE_pums.csv", row.names = FALSE)
 ```
 
 <br>
@@ -444,7 +455,7 @@ detailedLatinoPop <- ourGet(acsDetailedLatino)
 detailed_re_acs <- bind_rows(detailedAsianPop, detailedNHPIPop, detailedLatinoPop)
 
 
-write.csv(detailed_re_acs, "data out/county_pop_detailed_RorE_acs.csv" row.names = FALSE)
+write.csv(detailed_re_acs, "data out/county_pop_detailed_RorE_acs.csv", row.names = FALSE)
 
 
 ```
