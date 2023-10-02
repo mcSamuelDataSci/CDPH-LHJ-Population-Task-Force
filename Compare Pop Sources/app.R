@@ -16,8 +16,82 @@ library(shinyWidgets)
 library(plotly)
 library(ggh4x)
 library(shinyjs)
+library(readxl)
+library(readr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(fs)
+library(scales)
+library(RColorBrewer)
+library(tidyr)
 
-source("FusionStandards.R")
+# Plotting Standards -------------------------------------------------------------
+
+# Color-blind friendly (9 colors) palette 
+paletteCB <- c("#0072B2", # darker blue, 
+               "#4A4A4A", # darker gray,
+               "#D55E00", # darker orange
+               "#117733", # green
+               "#56B4E9", # lightblue
+               "#4BE62F", # light green
+               "#E69F00", # lighter orange
+               "#CC79A7",  # pink
+               "#b22222") # firebrick
+
+# ggplot standards ---------------------
+
+myTitleSize <- 20
+myLegendSize <- 20
+
+
+myTextSize <- 18
+myAxisTextSize <- myTextSize2 <- 16
+myAxisSize  <- myAxisTitleSize <- myTextSize3 <- 20
+
+myWrapNumber <- 70
+myTitleColor <- "darkblue"
+
+myCex1           <- 2  # 1.5  #line labels
+myCex2           <- 1.2  #currently used only in education trend
+myLineLabelSpace <- 0.3
+
+#myLineLabelSize <- 26 - deleted, not used
+
+myLineLabelCex <- 2
+
+
+
+myLineSize  <- 2
+myPointSize <- 5 # line markers
+myPointShape <- 18
+
+myTheme <- theme_bw() +
+  theme(plot.title   = element_text(size = myTitleSize, color=myTitleColor, face = 'bold'),
+        strip.text.y = element_text(size = myTextSize2, face="bold", angle = 0),
+        strip.text.x = element_text(size = myTextSize2, face="bold", angle = 0),
+        axis.title   = element_text(size = myAxisTitleSize, face="bold"), # was myTextSize2, changed to myAxisSize
+        axis.text.y  = element_text(size = myAxisTextSize),
+        axis.text.x  = element_text(size = myAxisTextSize), 
+        legend.text = element_text(size = myLegendSize), 
+        legend.title = element_text(size = myLegendSize)
+        #axis.text.x  = element_text(size = 10,          face="bold", angle = 40, hjust = 1),
+  )
+
+theme_set(myTheme)
+
+
+# -- Plotly Standards ------------------
+
+font_title <- list(size = myTitleSize,
+                   color = myTitleColor
+)
+
+font_axisTitle <- list(size = myAxisTitleSize)
+
+font_axisText <- list(size = myAxisTextSize + 20)
+
+font_legend <- list(size = myLegendSize)
 
 
 # Preparing "all_sources" population data -------------------------------------------------------------------
@@ -68,14 +142,14 @@ myAges <- unique(c(myAge5, myAge10))
 
 # Life Expectancy Comparison: DOF (CCB) versus ESRI (Matt Beyers) - Alemeda County -----------------------------
 
-esri_le <- readxl::read_excel("Upstream/Raw Pop/alamedaPop.xlsx", sheet = "le") %>%
+esri_le <- readxl::read_excel("alamedaPop.xlsx", sheet = "le") %>%
   pivot_longer(-year, names_to = "raceCode", values_to = "ex") %>%
   mutate(type = "esri")
 
-geoMap  <- as.data.frame(read_excel(paste0(ccbInfo,"/County Codes to County Names Linkage.xlsx"))) %>%
+geoMap  <- as.data.frame(read_excel("County Codes to County Names Linkage.xlsx")) %>%
   select(FIPSCounty,county=countyName)
 
-dof_le <- readRDS(paste0(ccbData, "e0ciCounty.RDS")) %>%
+dof_le <- readRDS("e0ciCounty.RDS") %>%
   mutate(FIPSCounty=substr(GEOID,3,5))  %>%
   left_join(geoMap,by="FIPSCounty") %>%
   filter(county == "Alameda", year %in% 2005:2020, sex == "Total", 

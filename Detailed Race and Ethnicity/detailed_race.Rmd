@@ -41,6 +41,7 @@ library(dplyr)
 library(survey)
 library(srvyr)
 library(readxl)
+library(readr)
 library(RColorBrewer)
 
 
@@ -75,7 +76,7 @@ flextable(iTable) %>%
   merge_v(j = 1:2) %>%
   align(j = 1, align = "center") %>%
   align(j = 2:3, align = "left", part = "body") %>%
-  align(j = 1:3, part = "header") %>%
+  # align(j = 1:3, part = "header") %>%
   theme_box() %>%
   footnote(i = 6, j = 2, 
            value = as_paragraph(c("AI/AN Tribal breakdowns are available in ACS, but not included throughout this document or in any of the output data files.")), 
@@ -322,19 +323,31 @@ The interpretation of detailed race and ethnicity population data, detailed nume
 Note: A Census API key is required, which can be obtained [here](https://api.census.gov/data/key_signup.html).
 
 ```{r eval = FALSE, echo = FALSE}
-census_api_key("e7c1ee99540a164fe0ae8966b9ffcc3b64790aa7")
+.census_api_key <- read_file("data in/census_api_key.txt")
+
+census_api_key(.census_api_key)
 ```
 
 ```{r eval = FALSE, echo = TRUE}
 
 # Load in census api key
-census_api_key("your_census_api_key_here")  # link to get an api key: https://api.census.gov/data/key_signup.html 
+# census_api_key("your_census_api_key_here")  # link to get an api key: https://api.census.gov/data/key_signup.html 
 
 
-# Pull raw pums data
+# Pull raw pums data - detailed RE by age
 detailed_re_pums <- get_pums(
   state = "CA", 
   variables = c("RAC1P", "RAC2P", "HISP", "AGEP"),
+  survey = "acs5",
+  year = 2019, 
+  recode = TRUE,
+  rep_weights = "person"
+)
+
+# Detailed RE
+detailed_re_pums <- get_pums(
+  state = "CA", 
+  variables = c("RAC1P", "RAC2P", "HISP"),
   survey = "acs5",
   year = 2019, 
   recode = TRUE,
@@ -387,9 +400,7 @@ sum(detailed_re$population)
 saveRDS(detailed_re, "data in/CA_pop_detailed_RE_age.RDS")
 
 write.csv(detailed_re, "data out/ca_pop_detailed_RE_age_pums.csv", row.names = FALSE)
-
-library(openxlsx)
-write.xlsx(detailed_re, "data out/ca_pop_detailed_RE_age_pums.xlsx")
+write.csv(detailed_re, "data out/ca_pop_detailed_RE_pums.csv", row.names = FALSE)
 ```
 
 <br>
@@ -404,7 +415,9 @@ These ACS 5-year data pulled below have two key differences from the ACS PUMS da
 2.  Unlike ACS PUMS, the ACS 5-year detailed Asian and NH/PI estimates below are not stratified by Hispanic or Latino origin.
 
 ```{r, echo=FALSE}
-census_api_key("e7c1ee99540a164fe0ae8966b9ffcc3b64790aa7")
+.census_api_key <- read_file("data in/census_api_key.txt")
+
+census_api_key(.census_api_key)
 ```
 
 ```{r, echo = TRUE, eval = FALSE}
@@ -419,8 +432,8 @@ acsDetailedLatino <- read_xlsx("data in/detailedRE_ACS_link.xlsx", sheet = "Deta
 
 ourGet <- function(ourVariable = acsDetailedAsian) {
   get_acs(geography = "county", state = 06, year = 2019, survey = "acs5", moe_level = 90, variables = ourVariable$acsID) %>% 
-  left_join(ourVariable, by = c("variable" = "acsID")) %>% 
-  select(GEOID, county = NAME, acsID = variable, raceGroup, detailedRace, population = estimate, moe)
+    left_join(ourVariable, by = c("variable" = "acsID")) %>% 
+    select(GEOID, county = NAME, acsID = variable, raceGroup, detailedRace, population = estimate, moe)
 }
 
 detailedAsianPop  <- ourGet(acsDetailedAsian)  
@@ -430,9 +443,8 @@ detailedLatinoPop <- ourGet(acsDetailedLatino)
 
 detailed_re_acs <- bind_rows(detailedAsianPop, detailedNHPIPop, detailedLatinoPop)
 
-library(openxlsx)
-write.xlsx(detailed_re_acs, "data out/county_pop_detailed_RE_acs.xlsx")
-write.csv(detailed_re_acs, "data out/county_pop_detailed_RE_acs.csv" row.names = FALSE)
+
+write.csv(detailed_re_acs, "data out/county_pop_detailed_RorE_acs.csv" row.names = FALSE)
 
 
 ```
