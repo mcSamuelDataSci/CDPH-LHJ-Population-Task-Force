@@ -1,6 +1,16 @@
 P3
-finalPopData
-intermediatePopData
 STD SAS files
 Census
 Exploratory
+Standards/census.api.key.txt
+intermediatePopData/Archive
+intermediatePopData/dof-p3-processed.csv
+intermediatePopData/census-city-ars.csv
+finalPopData/lhj-population-ars.csv
+finalPopData/Archive
+finalPopData/lhj-population-ars-STDCB.csv
+finalPopData/lhj-population-ars-STDCB.RDS
+E1
+Census Vintage
+Archive
+.Rproj.user

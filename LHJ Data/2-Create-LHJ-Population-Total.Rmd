@@ -1,0 +1,125 @@
+---
+title: "Create Total LHJ Population Data"
+author: "Jaspreet Kang"
+date: "11/15/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(scipen=999)
+
+library(readxl)
+library(readr)
+library(dplyr)
+library(tidyr)
+
+# Info Files
+
+# County
+countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
+  select(county = countyName) %>% 
+  mutate(countyName = paste0(county, " County"))
+
+# Cities
+cities <- c("Berkeley", "Long Beach", "Pasadena")
+
+inputDir <- "intermediatePopData/"
+# Save Output Files
+outputDir <- "finalPopData/"
+
+```
+
+# Introduction
+
+This RMarkdown file creates a dataset with total July population estimates for:
+
+-   All 58 counties
+-   The 3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
+-   Alameda Health Department
+-   Los Angeles Health Department
+
+Two outputs are used from 1-Process-Raw-Data.Rmd:
+
+1.  intermediatePopData/dof-e4-processed.RDS
+
+    1.  Processed January estimates for cities, counties, and the state (source: Department of Finance)
+
+2.  intermediatePopData/dof-e6-processed.RDS
+
+    1.  Processed July estimates for counties (source: Department of Finance)
+    
+To calculate total July population estimates for the 3 cities:
+
+1. Calculate the proportion of each city's January population to its respective county January population (Berkeley/Alameda, Long Beach/Los Angeles, Pasadena/Los Angeles).
+
+2. Multiply each proportion to its respective county July population to get a city July population estimate.
+
+Then, to calculate total July population estimates for Alameda and Los Angeles Health Departments:
+
+-   Alameda HD July population = Alameda County July population - Berkeley City July population
+-   Los Angeles HD July population = Los Angeles County July population - (Long Beach City July population + Pasadena City July population)
+
+Output is saved in finalPopData/:
+
+1. lhj-population-total 
+
+# Read in processed population data files (created in "1-Process-Raw-Data.Rmd"):
+
+```{r}
+
+e4 <- readRDS(paste0(inputDir, "dof-e4-processed.RDS"))
+e6 <- readRDS(paste0(inputDir, "dof-e6-processed.RDS"))
+
+```
+
+# Calculate LHJ Total Estimates
+
+```{r}
+
+# County Estimates ---------------------------------------
+
+countyEstimates <- e6 %>% 
+  mutate(County = paste0(County, " County")) %>% 
+  select(County, Year, county_population = population)
+
+# City Estimates -----------------------------------------
+
+cityEstimates <- e4 %>%
+  select(Place, County, Year, city_county_proportion) %>% 
+  left_join(countyEstimates, by = c("County", "Year")) %>% 
+  mutate(city_population = city_county_proportion * county_population)
+
+cityEstimatesFinal <- cityEstimates %>% 
+  select(LHJ = Place, YEAR = Year, POP = city_population)
+
+
+# Health Department Estimates ----------------------------
+  
+hdEstimates <- cityEstimates %>%
+  mutate(Place = ifelse(Place == "Berkeley", "Berkeley", "Pasadena/Long Beach")) %>% 
+  group_by(Place, Year, County) %>% 
+  summarise(county_population = mean(county_population), 
+            city_population = sum(city_population)) %>% 
+  ungroup() %>% 
+  mutate(POP = county_population - city_population, 
+         LHJ = ifelse(Place == "Berkeley", "Alameda HD", "Los Angeles HD")) %>%
+  select(LHJ, YEAR = Year, POP)
+
+
+# Append and save -------------------------------------------------
+
+lhjJuly_final <- bind_rows(
+  rename(countyEstimates, LHJ = County, YEAR = Year, POP = county_population),
+  select(cityEstimates, LHJ = Place, YEAR = Year, POP = city_population),
+  hdEstimates
+  ) %>% 
+  arrange(LHJ, YEAR)
+
+colSums(is.na(lhjJuly_final))
+
+saveRDS(lhjJuly_final, paste0(outputDir, "lhj-population-total.RDS"))
+write_csv(lhjJuly_final, paste0(outputDir, "lhj-population-total.csv"))
+
+```

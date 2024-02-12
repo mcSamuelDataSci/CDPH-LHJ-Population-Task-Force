@@ -1,0 +1,337 @@
+---
+title: "Create LHJ Sex-Age-Race/Ethnicity Population Data"
+author: "Jaspreet Kang"
+date: "11/15/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(scipen=999)
+
+library(readxl)
+library(readr)
+library(dplyr)
+library(tidyr)
+
+# Info Files
+
+# County
+countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
+  select(county = countyName) %>% 
+  mutate(countyName = paste0(county, " County"))
+
+# Cities
+cities <- c("Berkeley", "Long Beach", "Pasadena")
+
+# Save Output Files
+outputDir1 <- "intermediatePopData/"
+outputDir2 <- "finalPopData/"
+
+```
+
+# Introduction
+
+This RMarkdown file creates two datasets with age-race/ethnicity-sex July population estimates for:
+
+-   All 58 counties
+-   The 3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
+-   Alameda Health Department
+-   Los Angeles Health Department
+
+The first dataset uses STDCB's original methodology, while the second dataset uses a modified methodology. The differences between these two are noted throughout the document.
+
+Three outputs are used from 1-Process-Raw-Data.Rmd:
+
+1.  intermediatePopData/census-city-ars.RDS
+
+    1.  City-level Sex-Age-Race/Ethnicity population estimates pulled from the 2000, 2010, and 2020 Decennial.
+
+2.  intermediatePopData/census-county-ars.RDS
+
+    1.  County-level Sex-Age-Race/Ethnicity population estimates pulled from the 2000, 2010, and 2020 Decennial.
+    
+3.  intermediatePopData/dof-p3-processed.RDS
+
+    1. Processed Sex-Age-Race/Ethnicity population estimates from 2000-2022
+
+One output is used from 2-Create-LHJ-Population-Total.Rmd
+
+1.  finalPopData/lhj-population-total.RDS
+
+    1. Total July population estimates
+    
+Final outputs are saved in finalPopData/:
+
+1. lhj-population-ars-STDCB
+2. lhj-population-ars (modified methodology)
+
+
+# Read in required population data files:
+```{r}
+
+censusCity <- readRDS(paste0(outputDir1, "census-city-ars.RDS"))
+censusCounty <- readRDS(paste0(outputDir1, "census-county-ars.RDS"))
+p3 <- readRDS(paste0(outputDir1, "dof-p3-processed.RDS"))
+lhjTotal <- readRDS(paste0(outputDir2, "lhj-population-total.RDS"))
+
+
+```
+
+## Step 1. 
+
+Adjust DOF P3 ARS population estimates so that the total county population estimates match DOF E6 July estimates.
+
+(DOF P3 County ARS Strata Population) / (DOF P3 Total County Population) * (DOF E6 July Total County Population)
+
+Note: The total county population estimates in DOF P3 should already match the latest July county estimates in DOF E6. This is true for 2000-2009 & 2020-2022. However for 2010-2019, the total county population estimates are slightly different due to the several revisions DOF made to their P3 Vintage 2020 (pre Decennial 2020) file. 
+
+```{r}
+
+# County estimates ----------------------------------
+countyARS_adj <- p3 %>% 
+  group_by(County, Year) %>% 
+  mutate(county_population = sum(population)) %>% 
+  ungroup() %>% 
+  mutate(ratioStrata = population / county_population) %>% 
+  left_join(lhjTotal, by = c("County" = "LHJ", "Year" = "YEAR")) %>% 
+  mutate(POP = ratioStrata * POP) %>% 
+  select(LHJ = County, YEAR = Year, sex, age, raceEth, origPop = population, POP)
+
+```
+
+# STDCB's methodology
+
+## Step 2. 
+
+Using the Census city-level ARS data, calculate the proportion of the city-level ARS strata to the total population of the corresponding city. 
+
+Census City ARS Strata Proportion = (Census City ARS Strata Population) / (Census City Total Population)
+
+## Step 3.
+
+Multiply the proportion from step 2 to the total July population estimate of the corresponding city.
+
+July City ARS Population = (Census City ARS Strata Proportion) * (July City Total Population)
+
+Note: Census has R/E group 'Other' whereas DOF does not. 'Other' is combined with 'White'
+
+## Step 4.
+
+At this point, we now have July ARS population estimates at the county and city levels. To get ARS estimates at the health department level:
+
+July Alameda HD ARS Population = (July Alameda County ARS Population) - (July Berkeley ARS Population)
+
+July Los Angeles HD ARS Population = (July Los Angeles County ARS Population) - (July Long Beach ARS Population + July Pasadena ARS Population)
+
+# Calculate LHJ Sex-Age-Race/Ethnicity Estimates
+```{r}
+
+# City estimates ----------------------------------
+cityARS <- censusCity %>% 
+  filter(NAME %in% c("Berkeley city, California", "Pasadena city, California", "Long Beach city, California"), 
+         raceEth != "Total", sex != "Total", age != "Total") %>% 
+  mutate(NAME = sub(" city, California", "", NAME)) %>% 
+  group_by(year, NAME) %>% 
+  mutate(city_population = sum(population)) %>% 
+  ungroup() %>% 
+  mutate(ratioStrata = population / city_population)
+
+joinCityCounty <- function(myYear) {
+  myYears <- myYear:(myYear+9)
+  
+  tCity <- cityARS %>% filter(year == myYear) %>% select(-year)
+  tCounty <- lhjTotal %>% filter(YEAR %in% myYears)
+  tCity %>% 
+    left_join(tCounty, by = c("NAME" = "LHJ"), relationship = "many-to-many") 
+}
+
+cityARS_final <- bind_rows(
+  joinCityCounty(2000),
+  joinCityCounty(2010),
+  joinCityCounty(2020)
+) %>% 
+  mutate(POP = ratioStrata * POP, 
+         raceEth = ifelse(raceEth == "Other", "White", raceEth)) %>%
+  group_by(LHJ = NAME, YEAR, sex, age, raceEth) %>% 
+  summarise(POP = sum(POP)) %>% 
+  ungroup()
+
+  
+# Health Department estimates ----------------------
+hdARS <- cityARS_final %>% 
+  mutate(LHJ = ifelse(LHJ == "Berkeley", "Berkeley", "Pasadena/Long Beach")) %>% 
+  group_by(city = LHJ, YEAR, sex, age, raceEth) %>% 
+  summarise(city_population = sum(POP)) %>% 
+  ungroup() %>% 
+  mutate(county = ifelse(city == "Berkeley", "Alameda County", "Los Angeles County")) %>% 
+  left_join(rename(countyARS_adj, county = LHJ, county_population = POP)) %>% 
+  mutate(POP = county_population - city_population,
+         # POP = ifelse(POP < 0, 0, POP),
+         LHJ = ifelse(city == "Berkeley", "Alameda HD", "Los Angeles HD"))%>% 
+  select(LHJ, YEAR, sex, age, raceEth, POP)
+
+
+# Append and save --------------------------------
+lhjARS <- bind_rows(countyARS_adj, cityARS_final, hdARS) %>% 
+  arrange(LHJ, YEAR, sex, age, raceEth)
+
+# Checks -----------------------------------------
+
+colSums(is.na(lhjARS))
+ 
+lhjARS %>%  
+  filter(is.na(origPop), !LHJ %in% c("Alameda HD", "Los Angeles HD", "Berkeley", "Pasadena", "Long Beach")) 
+
+saveRDS(lhjARS, paste0(outputDir2, "lhj-population-ars-STDCB.RDS"))
+write_csv(lhjARS, paste0(outputDir2, "lhj-population-ars-STDCB.csv"))
+
+
+```
+
+
+# STDCB's modified methodology
+
+## Step 2. 
+
+Using the Census city and county-level ARS data, calculate the proportion of the city-level ARS strata to the population of the corresponding county-level ARS strata.
+
+2. Census City ARS Strata Proportion = (Census City ARS Strata Population) / (Census County ARS Strata Population)
+
+## Step 3.
+
+Multiply the proportion from step 2 to the July population estimate of the corresponding county-level ARS strata.
+
+July City ARS Population = (Census City ARS Strata Proportion) * (July County ARS Strata Population)
+
+Note: Census has R/E group 'Other' whereas DOF does not. 'Other' is combined with 'White'
+
+## Step 4.
+
+At this point, we now have July ARS population estimates at the county and city levels. To get ARS estimates at the health department level:
+
+July Alameda HD ARS Population = (July Alameda County ARS Population) - (July Berkeley ARS Population)
+
+July Los Angeles HD ARS Population = (July Los Angeles County ARS Population) - (July Long Beach ARS Population + July Pasadena ARS Population)
+
+# Calculate LHJ Sex-Age-Race/Ethnicity Estimates
+```{r}
+
+# City estimates ----------------------------------
+censusCityARS <- censusCity %>%  
+  filter(NAME %in% c("Berkeley city, California", "Pasadena city, California", "Long Beach city, California"), 
+         raceEth != "Total", sex != "Total", age != "Total") %>% 
+  mutate(NAME = sub(" city, California", "", NAME), 
+         county = ifelse(NAME == "Berkeley", "Alameda County", "Los Angeles County"), 
+         raceEth = ifelse(raceEth == "Other", "White", raceEth)) %>% # Discuss with Michael.
+  group_by(year, NAME, county, sex, age, raceEth) %>% 
+  summarise(populationCity = sum(population)) %>% 
+  ungroup()
+
+
+censusCountyARS <- censusCounty %>% 
+  filter(NAME %in% c("Alameda County, California", "Los Angeles County, California"), 
+         raceEth != "Total", sex != "Total", age != "Total") %>% 
+  mutate(NAME = sub(", California", "", NAME), 
+         raceEth = ifelse(raceEth == "Other", "White", raceEth)) %>% # Discuss with Michael.
+  group_by(year, county = NAME, sex, age, raceEth) %>% 
+  summarise(populationCounty = sum(population)) %>% 
+  ungroup()
+
+censusCityCountyARS <- censusCityARS %>% 
+  left_join(censusCountyARS, by = c("year", "county", "sex", "age", "raceEth")) %>% 
+  mutate(cityCountyProp = populationCity / populationCounty, 
+         cityCountyProp = ifelse(is.nan(cityCountyProp), 0, cityCountyProp)) # Discuss with Michael. All NANs are 0/0
+
+joinCityCounty <- function(myYear) {
+  myYears <- myYear:(myYear+9)
+  
+  tCity <- censusCityCountyARS %>% filter(year == myYear) %>% select(-year)
+  tCounty <- countyARS_adj %>% filter(YEAR %in% myYears)
+  tCity %>% 
+    left_join(tCounty, by = c("county" = "LHJ", "sex", "age", "raceEth"), relationship = "many-to-many") 
+}
+
+cityARS_final <- bind_rows(
+  joinCityCounty(2000),
+  joinCityCounty(2010),
+  joinCityCounty(2020)
+) %>% 
+  mutate(POP = cityCountyProp * POP) %>%
+  select(LHJ = NAME, YEAR, sex, age, raceEth, POP)
+
+table(cityARS_final$LHJ, cityARS_final$YEAR, useNA = "ifany")
+length(unique(cityARS_final$sex)) * length(unique(cityARS_final$age)) * length(unique(cityARS_final$raceEth))
+  
+# Health Department estimates ----------------------
+hdARS <- cityARS_final %>% 
+  mutate(LHJ = ifelse(LHJ == "Berkeley", "Berkeley", "Pasadena/Long Beach")) %>% 
+  group_by(city = LHJ, YEAR, sex, age, raceEth) %>% 
+  summarise(city_population = sum(POP)) %>% 
+  ungroup() %>% 
+  mutate(county = ifelse(city == "Berkeley", "Alameda County", "Los Angeles County")) %>% 
+  left_join(rename(countyARS_adj, county = LHJ, county_population = POP)) %>% 
+  mutate(POP = county_population - city_population,
+         # POP = ifelse(POP < 0, 0, POP),
+         LHJ = ifelse(city == "Berkeley", "Alameda HD", "Los Angeles HD"))%>% 
+  select(LHJ, YEAR, sex, age, raceEth, POP)
+
+
+# Append and save --------------------------------
+lhjARS <- bind_rows(countyARS_adj, cityARS_final, hdARS) %>% 
+  select(LHJ, YEAR, sex, age, raceEth, POP) %>% 
+  arrange(LHJ, YEAR, sex, age, raceEth)
+
+# Checks -----------------------------------------
+
+colSums(is.na(lhjARS))
+ 
+table(lhjARS$LHJ, lhjARS$YEAR, useNA = "ifany")
+
+# Refine final data ------------------------------
+
+lhjARS_final <- lhjARS %>% 
+  mutate(LHJ = sub(" County", "", LHJ), 
+         raceEth = sub("[/]", "", raceEth), 
+         raceEth = ifelse(raceEth == "Multi-Race", "Multirace", raceEth)) %>% 
+  rename(county_lhj = LHJ, year = YEAR, race_eth = raceEth, pop = POP)
+
+saveRDS(lhjARS_final, paste0(outputDir2, "lhj-population-ars.RDS"))
+write_csv(lhjARS_final, paste0(outputDir2, "lhj-population-ars.csv"))
+
+
+```
+
+# Compare LHJ ars estimates - STDCB versus Modified STDCB
+
+```{r}
+
+stdcb <- readRDS(paste0(outputDir2, "lhj-population-ars-STDCB.RDS"))
+m_stdcb <- readRDS(paste0(outputDir2, "lhj-population-ars.RDS"))
+
+compEstimates <- full_join(
+  rename(stdcb, STD = POP),
+  rename(m_stdcb, mSTD = POP)
+) %>% 
+  select(-origPop) %>% 
+  mutate(diff = mSTD - STD, 
+         geoLevel = case_when(grepl("County", LHJ) ~ "County", 
+                              grepl("HD", LHJ) ~ "HD", 
+                              TRUE ~ "LHJ"), 
+         isDiff = ifelse(diff == 0, FALSE, TRUE))
+
+colSums(is.na(compEstimates))
+
+table(compEstimates$geoLevel, compEstimates$isDiff, useNA = "ifany")
+
+diffEstimates <- compEstimates %>% 
+  filter(diff != 0)
+
+diffAlameda <- diffEstimates %>% 
+  filter(LHJ %in% c("Alameda County", "Alameda HD", "Berkeley"))
+
+checkStrata <- compEstimates %>% 
+  filter(LHJ %in% c("Alameda County", "Alameda HD", "Berkeley"), YEAR == 2022, raceEth == "Multi-Race", sex == "Male", age == "36")
+
+```
