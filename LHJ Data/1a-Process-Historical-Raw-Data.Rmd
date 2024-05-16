@@ -1,0 +1,417 @@
+---
+title: "Pulling and Processing Historical Raw Population Data"
+author: "Jaspreet Kang"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+Note: This Rmarkdown only needs to be executed once to produce the historical population datasets. Once produced, this file never needs to be ran again **unless** any of the historical data files (listed further below) are updated after April 3, 2024.
+
+This RMarkdown file extracts and processes historical population data necessary for creating sex-age-race/ethnicity estimates for all 61 California Local Health Jurisdictions:
+
+-   58 counties
+-   3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
+-   Alameda LHJ
+-   Los Angeles LHJ
+
+## Population Data Required:
+
+The population data files extracted and processed include:
+
+1.  Department of Finance (DOF) Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail
+
+    1.  Downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/annual-intercensal-population-estimates-by-race-ethnicity-with-age-and-gender-detail/)
+
+    2.  Location: *P3/Intercensal_2000-2010_DBInput.csv*
+
+    3.  Contains county-level Sex-Age-Race/Ethnicity population estimates for April 1, 2000 and 2010 and July 1, 2000 through 2010 estimates. July 1, 2000 through July 1, 2009 estimates are used.
+
+2.  Census Decennial for county- and city-level Sex-Age-Race/Ethnicity population (April 1st estimates)
+
+    1.  Extracted using R's [tidycensus](https://github.com/walkerke/tidycensus) package. This method requires a Census API key, which can be obtained [here](https://api.census.gov/data/key_signup.html). Estimates are pulled from the 2000 and 2010 Decennial.
+
+### Optional
+
+Department of Finance P3 data (processed in *1b-Process-Current-Raw-Data.Rmd*) are January 1 estimates. The files below allow for the adjustment of DOF P3 data to July 1 population rather than January 1.
+
+3.  Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
+
+    1.  Excel files of these data were downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/), and are stored in *E4/Raw/*. The raw data were then manually formatted for easier processing and stored into *E4/Clean/*.
+
+    2.  Contains January 1st county- and city-level total estimates from 1970-2010
+
+4.  Department of Finance - E-6 Population Estimates and Components of Change by County
+
+    1.  Excel files of these data were downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/), and are stored in *E6/Raw/*. The raw data were then manually formatted for easier processing and stored into *E6/Clean/.*
+
+    2.  Contains July 1st county-level total estimates from 1947-2009
+
+Note: The data structure and formatting between each of DOF's raw E-4 and E-6 files are largely inconsistent. Therefore, these files were first manually converted to a standard format.
+
+## Data File Outputs:
+
+The processed datasets are saved as csv and RDS files into *intermediatePopData/*:
+
+1.  *dof-p3-processed-historical*
+
+    1.  Note: This file is processed data of the DOF annual intercensal sex-age-race/ethnicity population estimates (from 2000-2009) at the county-level. We call it "P3" for convenience, since this data is eventually combined with the current DOF P3 data which also contains sex-age-race/ethnicity population estimates at the county-level. One major difference is the 2000-2009 annual intercensal data are July 1st estimates, whereas the P3 data are Jan 1st estimates.
+
+2.  *census-city-ars-historical*
+
+3.  *census-county-ars-historical*
+
+4.  *dof-e4-processed-historical*
+
+5.  *dof-e6-processed-historical*
+
+# Processing
+
+## Setup
+
+R version 4.0.4 (2021-02-15)
+
+Platform: x86_64-pc-linz-gnu (64-bit)
+
+RStudio Workbench Version 1.4.1717-3: "Juliet Rose" (23fd1677, 2021-05-27) for CentOS 8
+
+Package versions:
+
+-   readxl - 1.3.1
+
+-   readr - 2.1.4
+
+-   dplyr - 1.1.3
+
+-   tidyr - 1.3.0
+
+-   tidycensus - 1.5
+
+-   janitor - 2.1.0
+
+-   stringr - 1.5.0
+
+-   lubridate - 1.9.3
+
+```{r}
+
+# Setup ========================================================================================
+
+# Disable scientific notation
+options(scipen=999)
+
+## Load packages ----------------------------------------------
+library(readxl) # Read in excel files
+library(readr) # Read in and write csv files
+library(dplyr) # Data manipulation
+library(tidyr) # Data reshaping
+library(janitor) # Contains helpful functions for data cleaning
+library(lubridate) # Date formatting
+library(stringr) # String formatting
+library(tidycensus) # For interacting with Census API
+
+## Global constants ---------------------------------------------
+
+# City LHJs
+cities <- c("Berkeley", "Long Beach", "Pasadena")
+
+
+# Directory to save output files to
+outputDir <- "intermediatePopData/"
+
+```
+
+## Process and Save Data
+
+### (Required) Department of Finance's **Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail**
+
+Steps:
+
+1.  Read in relationship files, located in *Standards/*
+
+    1.  *countyLink.xlsx* - Used for linking DOF's county codes to county names.
+
+    2.  *raceLink.xlsx* - Used for linking DOF's race/ethnicity codes to a standard set of race/ethnicity labels.
+
+2.  Read in DOF's "Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail" file
+
+    1.  Location: *P3/Intercensal_2000-2010_DBInput.csv*
+
+    2.  Contains Sex-Age-Race/Ethnicity population estimates for April 1, 2000 and 2010 and July 1, 2000 through 2010 estimates. July 1, 2000 through July 1, 2009 estimates are used.
+
+3.  Process data
+
+4.  Save data as .RDS and .csv into *intermediatePopData/*
+
+    1.  *dof-p3-processed-historical.RDS*
+
+    2.  *dof-p3-processed-historical.csv*
+
+```{r}
+
+# County relationship file =======
+countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
+  select(county = countyName, CountyCode = cdphcaCountyTxt)
+
+raceLink <- read_xlsx("Standards/raceLink.xlsx") %>% 
+  select(race7, raceEth = raceNameShort)
+
+# Read in and process data =======
+p3_historical <- read_csv("P3/Intercensal_2000-2010_DBInput.csv") %>% 
+  mutate(year  = as.numeric(str_sub(Year,5,9)),
+         month = as.numeric(str_sub(Year,1,1))) %>%    
+  filter(month == 7)  %>% # Use July estimates
+  select(CountyCode, year, sex=Gender, race7=RaceCode, age=Age, population=Population) %>% # CountyCode - 2 digit character: # "01", "02" ... "58", "59"
+  full_join(countyLink,by="CountyCode") %>%                       
+  filter(CountyCode != "59") %>% # Remove California
+  select(-CountyCode) %>%
+  mutate(race7 = ifelse(race7 == 6, 99, race7), 
+         race7 = ifelse(race7 == 7, 6, race7),
+         race7 = ifelse(race7 == 99, 7, race7),
+         age = as.character(age), 
+         age = ifelse(age == "100", "100+", age)
+         )  %>%
+  left_join(raceLink, by = "race7") %>% 
+  select(county, year, sex, raceEth, age, population) %>% 
+  filter(year != 2010) # Remove 2010 here?
+
+# Save data =======
+saveRDS(p3_historical, paste0(outputDir, "dof-p3-processed-historical.RDS"))
+write_csv(p3_historical, paste0(outputDir, "dof-p3-processed-historical.csv"))
+
+```
+
+### (Required) Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
+
+Steps:
+
+1.  Load in Census API key into session. An API key can be obtained from [here](https://api.census.gov/data/key_signup.html).
+
+    1.  Note: Set the **.ckey** object to your Census API key.
+
+2.  Read in decennial relationship files, which link table IDs to their corresponding sex by age by R/E stratas
+
+3.  Call the Census API to pull county and city-level sex by age by race/ethnicity estimates from the 2000 and 2010 Decennial
+
+4.  Process outputs from Step 3
+
+5.  Save data as .RDS and .csv into *intermediatePopData/*
+
+    1.  *census-city-ars-historical.RDS*
+
+    2.  *census-city-ars-historical.csv*
+
+    3.  *census-county-ars-historical.RDS*
+
+    4.  *census-county-ars-historical.csv*
+
+```{r}
+
+# Census API Key: Set your API key here, which can be obtained from
+# https://api.census.gov/data/key_signup.html
+.ckey   <- read_file("Standards/census.api.key.txt")
+census_api_key(.ckey) # Load census API key into sesesion
+
+# Read in Census Decennial relationship file ======================
+# Links table IDs to their corresponding sex by age by R/E stratas
+
+decLink2000 <- read_excel("Standards/decennialLink.xlsx", sheet = "2000 ARS")
+decLink2010 <- read_excel("Standards/decennialLink.xlsx", sheet = "2010 ARS")
+
+# Custom Function to pull decennial census data =============================
+# Calls tidycensus' get_decennial() function, and links the resultant data frame to our census dcennial relationship file
+
+# Function arguments:
+# - myYear (num): a decennial year
+# - myGeography (chr): "place" for city; "county" for county
+# - mySumFil (chr)e: "sf1" for Decennial 2000 and 2010
+# - cache_table (TRUE or FALSE): Whether or not to cache table names for faster future access. Defaults to FALSE; if TRUE, only needs to be called once per dataset
+pullDecennial <- function(myYear, myGeography, mySumFile = "sf1", cacheTable = F) {
+  
+  if (myYear == 2000) {
+    decLink <- decLink2000
+  } else if (myYear == 2010) {
+    decLink <- decLink2010
+  } 
+  
+  tableIDs <- unique(decLink$tableID)
+  
+  lapply(tableIDs, function(x, myYear1 = myYear) {
+    
+    tDat <- get_decennial(geography = myGeography, table = x, year = myYear1, state = 06, sumfile = mySumFile, cache_table = cacheTable) %>% 
+      left_join(select(decLink, -tableID), by = c("variable" = "name")) %>% 
+      mutate(year = myYear1) %>% 
+      select(year, GEOID, NAME, sex, age, raceEth, population = value)
+  
+  
+}) %>% 
+  bind_rows()
+}
+
+
+## Call function pullDecennial() to pull 2000 and 2010 Decennial Census data  ========
+census2000_ars_city <- pullDecennial(myYear = 2000, myGeography = "place")
+census2000_ars_county <- pullDecennial(myYear = 2000, myGeography = "county")
+
+census2010_ars_city <- pullDecennial(myYear = 2010, myGeography = "place")
+census2010_ars_county <- pullDecennial(myYear = 2010, myGeography = "county")
+
+## Bind, process, and save data =======================
+censusFinal_city <- bind_rows(census2000_ars_city, census2010_ars_city) %>% 
+  group_by(year, GEOID, NAME, sex, age, raceEth) %>% 
+  summarise(population = sum(population)) %>% 
+  ungroup()
+
+censusFinal_county <- bind_rows(census2000_ars_county, census2010_ars_county) %>% 
+  group_by(year, GEOID, NAME, sex, age, raceEth) %>% 
+  summarise(population = sum(population)) %>% 
+  ungroup()
+
+saveRDS(censusFinal_city, paste0(outputDir, "census-city-ars-historical.RDS"))
+write_csv(censusFinal_city, paste0(outputDir, "census-city-ars-historical.csv"))
+
+saveRDS(censusFinal_county, paste0(outputDir, "census-county-ars-historical.RDS"))
+write_csv(censusFinal_county, paste0(outputDir, "census-county-ars-historical.csv"))
+```
+
+### (Optional) Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
+
+Steps:
+
+1.  Read in files from *E4/Clean/*
+
+    1.  *E4-1971-1980.xlsx*
+
+    2.  *E4-1981-1990.xlsx*
+
+    3.  *E4-1991-2000.xlsx*
+
+    4.  *E4-2001-2010.xlsx*
+
+2.  Data processing which includes
+
+    1.  Filtering the city portion of the data on Berkeley, Long Beach, and Pasadena
+
+    2.  Filtering the county portion of the data on Alameda County and Los Angeles County
+
+    3.  Calculating city to county proportion
+
+        1.  Berkeley population / Alameda County population
+
+        2.  Pasadena population / Los Angeles County population
+
+        3.  Long Beach population / Los Angeles County population
+
+3.  Save data as .RDS and .csv into *intermediatePopData/*
+
+    1.  *dof-e4-processed-historical.RDS*
+
+    2.  *dof-e4-processed-historical.csv*
+
+```{r}
+
+# Function for processing E4 files -----------------
+process_e4 <- function(years) { 
+  
+  colNames <- c("place", paste0("1/1/", years))
+  
+  fileName <- ifelse(2021 %in% years, 
+                     "E4/Clean/E4-2021-cy.xlsx",
+                     paste0("E4/Clean/E4-", min(years), "-", max(years), ".xlsx"))
+  
+  tCountyCity <- lapply(c("County", "City"), function(x) {
+    
+    read_excel(fileName, skip = 1, col_names = colNames, sheet = x) %>% 
+      select(place, starts_with("1")) %>% 
+      mutate(across(starts_with("1"), ~as.numeric(.x))) %>% 
+      pivot_longer(-place, names_to = "year", values_to = "population") %>% 
+      mutate(year = as.numeric(substr(year, 5, 8)))
+    
+  })
+  names(tCountyCity) <- c("County", "City")
+  
+  tCity <- tCountyCity$City %>% 
+    filter(place %in% cities) %>% 
+    mutate(county = ifelse(place == "Berkeley", "Alameda County", "Los Angeles County")) %>% 
+    rename(city_population = population) %>% 
+    left_join(rename(tCountyCity$County, county = place, county_population = population)) %>% 
+    mutate(city_county_proportion = city_population / county_population, 
+           county = sub(" County.*", "", county)) %>% 
+    select(year, place, county, city_county_proportion)
+  
+}
+
+# Process and save ---------------------------
+e4_final <- bind_rows(
+  process_e4(1971:1980), 
+  process_e4(1981:1990),
+  process_e4(1991:2000),
+  process_e4(2001:2010)
+)
+
+saveRDS(e4_final, paste0(outputDir, "dof-e4-processed-historical.RDS"))
+write_csv(e4_final, paste0(outputDir, "dof-e4-processed-historical.csv"))
+
+```
+
+### (Optional) Department of Finance - E-6 Population Estimates and Components of Change by County
+
+Steps:
+
+1.  Read in files from *E6/Clean/*
+
+    1.  *E6-1947-1969.xlsx*
+
+    2.  *E6-1970-1989.xlsx*
+
+    3.  *E6-1990-1999.xlsx*
+
+    4.  *E6-2000-2009.xlsx*
+
+2.  Process data
+
+3.  Save data as .RDS and .csv into *intermediatePopData/*
+
+    1.  *dof-e6-processed-historical.RDS*
+
+    2.  *dof-e6-processed-historical.csv*
+
+```{r}
+
+# Process 1947-1969 data --------------------------------
+
+e6_1947_69 <- read_excel("E6/Clean/E6-1947-1969.xlsx", col_names = c("county", 1947:1969), skip = 1) %>% 
+  pivot_longer(-county, names_to = "year", values_to = "population") %>% 
+  mutate(year = as.numeric(year))
+
+# Function for processing 1970-2009 data --------------------
+process_e6 <- function(years) {
+  
+  fileName <- ifelse(2021 %in% years, 
+                     "E6/Clean/E6-2020-cy.xlsx",
+                     paste0("E6/Clean/E6-", min(years), "-", max(years), ".xlsx"))
+  
+  read_excel(fileName) %>% 
+    rename(county = County, year = Year) %>% 
+    mutate(year = as.numeric(year), 
+           population = as.numeric(population))
+  
+}
+
+# Process 1970-CY data -----------------------------------
+e6_final <- bind_rows(e6_1947_69, 
+                      process_e6(1970:1989), 
+                      process_e6(1990:1999),
+                      process_e6(2000:2009)
+                      )
+
+# Save data --------------------------------------
+saveRDS(e6_final, paste0(outputDir, "dof-e6-processed-historical.RDS"))
+write_csv(e6_final, paste0(outputDir, "dof-e6-processed-historical.csv"))
+
+```

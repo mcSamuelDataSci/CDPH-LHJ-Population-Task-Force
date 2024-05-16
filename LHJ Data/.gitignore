@@ -4,9 +4,12 @@ Census
 Exploratory
 Standards/census.api.key.txt
 intermediatePopData/Archive
-intermediatePopData/dof-p3-processed.csv
-intermediatePopData/census-city-ars.csv
+intermediatePopData/dof-p3-processed-current.csv
+intermediatePopData/dof-p3-processed-historical.csv
+intermediatePopData/census-city-ars-current.csv
+intermediatePopData/census-city-ars-historical.csv
 finalPopData/lhj-population-ars.csv
+finalPopData/lhj-population-ars-adjJuly.csv
 finalPopData/Archive
 finalPopData/lhj-population-ars-STDCB.csv
 finalPopData/lhj-population-ars-STDCB.RDS

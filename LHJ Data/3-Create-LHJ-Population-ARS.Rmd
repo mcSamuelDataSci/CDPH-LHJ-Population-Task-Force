@@ -1,34 +1,12 @@
 ---
 title: "Create LHJ Sex-Age-Race/Ethnicity Population Data"
 author: "Jaspreet Kang"
-date: "11/15/2023"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
-options(scipen=999)
-
-library(readxl)
-library(readr)
-library(dplyr)
-library(tidyr)
-
-# Info Files
-
-# County
-countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
-  select(county = countyName) %>% 
-  mutate(countyName = paste0(county, " County"))
-
-# Cities
-cities <- c("Berkeley", "Long Beach", "Pasadena")
-
-# Save Output Files
-outputDir1 <- "intermediatePopData/"
-outputDir2 <- "finalPopData/"
-
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 # Introduction
@@ -51,24 +29,47 @@ Three outputs are used from 1-Process-Raw-Data.Rmd:
 2.  intermediatePopData/census-county-ars.RDS
 
     1.  County-level Sex-Age-Race/Ethnicity population estimates pulled from the 2000, 2010, and 2020 Decennial.
-    
+
 3.  intermediatePopData/dof-p3-processed.RDS
 
-    1. Processed Sex-Age-Race/Ethnicity population estimates from 2000-2022
+    1.  Processed Sex-Age-Race/Ethnicity population estimates from 2000-2022
 
 One output is used from 2-Create-LHJ-Population-Total.Rmd
 
 1.  finalPopData/lhj-population-total.RDS
 
-    1. Total July population estimates
-    
+    1.  Total July population estimates
+
 Final outputs are saved in finalPopData/:
 
-1. lhj-population-ars-STDCB
-2. lhj-population-ars (modified methodology)
+1.  lhj-population-ars-STDCB
+2.  lhj-population-ars (modified methodology)
 
+```{r}
+options(scipen=999)
+
+library(readxl)
+library(readr)
+library(dplyr)
+library(tidyr)
+
+# Info Files
+
+# County
+countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
+  select(county = countyName) %>% 
+  mutate(countyName = paste0(county, " County"))
+
+# Cities
+cities <- c("Berkeley", "Long Beach", "Pasadena")
+
+# Save Output Files
+outputDir1 <- "intermediatePopData/"
+outputDir2 <- "finalPopData/"
+```
 
 # Read in required population data files:
+
 ```{r}
 
 censusCity <- readRDS(paste0(outputDir1, "census-city-ars.RDS"))
@@ -79,13 +80,13 @@ lhjTotal <- readRDS(paste0(outputDir2, "lhj-population-total.RDS"))
 
 ```
 
-## Step 1. 
+## Step 1.
 
 Adjust DOF P3 ARS population estimates so that the total county population estimates match DOF E6 July estimates.
 
-(DOF P3 County ARS Strata Population) / (DOF P3 Total County Population) * (DOF E6 July Total County Population)
+(DOF P3 County ARS Strata Population) / (DOF P3 Total County Population) \* (DOF E6 July Total County Population)
 
-Note: The total county population estimates in DOF P3 should already match the latest July county estimates in DOF E6. This is true for 2000-2009 & 2020-2022. However for 2010-2019, the total county population estimates are slightly different due to the several revisions DOF made to their P3 Vintage 2020 (pre Decennial 2020) file. 
+Note: The total county population estimates in DOF P3 should already match the latest July county estimates in DOF E6. This is true for 2000-2009 & 2020-2022. However for 2010-2019, the total county population estimates are slightly different due to the several revisions DOF made to their P3 Vintage 2020 (pre Decennial 2020) file.
 
 ```{r}
 
@@ -103,9 +104,9 @@ countyARS_adj <- p3 %>%
 
 # STDCB's methodology
 
-## Step 2. 
+## Step 2.
 
-Using the Census city-level ARS data, calculate the proportion of the city-level ARS strata to the total population of the corresponding city. 
+Using the Census city-level ARS data, calculate the proportion of the city-level ARS strata to the total population of the corresponding city.
 
 Census City ARS Strata Proportion = (Census City ARS Strata Population) / (Census City Total Population)
 
@@ -113,7 +114,7 @@ Census City ARS Strata Proportion = (Census City ARS Strata Population) / (Censu
 
 Multiply the proportion from step 2 to the total July population estimate of the corresponding city.
 
-July City ARS Population = (Census City ARS Strata Proportion) * (July City Total Population)
+July City ARS Population = (Census City ARS Strata Proportion) \* (July City Total Population)
 
 Note: Census has R/E group 'Other' whereas DOF does not. 'Other' is combined with 'White'
 
@@ -126,6 +127,7 @@ July Alameda HD ARS Population = (July Alameda County ARS Population) - (July Be
 July Los Angeles HD ARS Population = (July Los Angeles County ARS Population) - (July Long Beach ARS Population + July Pasadena ARS Population)
 
 # Calculate LHJ Sex-Age-Race/Ethnicity Estimates
+
 ```{r}
 
 # City estimates ----------------------------------
@@ -190,20 +192,19 @@ write_csv(lhjARS, paste0(outputDir2, "lhj-population-ars-STDCB.csv"))
 
 ```
 
-
 # STDCB's modified methodology
 
-## Step 2. 
+## Step 2.
 
 Using the Census city and county-level ARS data, calculate the proportion of the city-level ARS strata to the population of the corresponding county-level ARS strata.
 
-2. Census City ARS Strata Proportion = (Census City ARS Strata Population) / (Census County ARS Strata Population)
+2.  Census City ARS Strata Proportion = (Census City ARS Strata Population) / (Census County ARS Strata Population)
 
 ## Step 3.
 
 Multiply the proportion from step 2 to the July population estimate of the corresponding county-level ARS strata.
 
-July City ARS Population = (Census City ARS Strata Proportion) * (July County ARS Strata Population)
+July City ARS Population = (Census City ARS Strata Proportion) \* (July County ARS Strata Population)
 
 Note: Census has R/E group 'Other' whereas DOF does not. 'Other' is combined with 'White'
 
@@ -216,6 +217,7 @@ July Alameda HD ARS Population = (July Alameda County ARS Population) - (July Be
 July Los Angeles HD ARS Population = (July Los Angeles County ARS Population) - (July Long Beach ARS Population + July Pasadena ARS Population)
 
 # Calculate LHJ Sex-Age-Race/Ethnicity Estimates
+
 ```{r}
 
 # City estimates ----------------------------------

@@ -1,0 +1,113 @@
+---
+title: "Pulling and Processing Raw Population Data"
+author: "Jaspreet Kang"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r include=FALSE}
+
+# Kniting Options
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+This system of data and RMarkdown file extracts and processes population data to generate simple a data set with sex-age-race/ethnicity estimates for all 58 California counties; the three city-based local health jurisdictions (LHJs) of Berkeley, Long Beach, and Pasadena; and the two respective county-less-city LHJs of Alameda LHJ and Los Angeles LHJ.
+
+**The core concept is:**
+
+1.  Get Department of Finance (DOF) county population data *by year*, by single year of age, sex, and race/ethnicity
+
+2.  Get US Decennial census county *and* city population data for *census years*, by single year of age, sex, and race/ethnicity
+
+    -   calculate city age-race-sex proportions of respective counties
+
+3.  Apply these proportions to the DOF data to calculate age-race-sex population estimates for *all* local health jurisdictions and export population files
+
+**Additional key concepts include:**
+
+-   Optional (Step 1a) is for adjustment of DOF data to July 1 population rather than January 1
+
+-   "Other" race is a category in the Decennial Census data but not in the other data sources, and is often not included in xxx. Therefore, "Other" race category data in the decennial census are redistributed to the other R/E categories, based on the distribution of those categories in each county xxx, xxx strata.
+
+Exported files:
+
+-   lhj-population-ars.csv
+
+    -   county_lhj
+
+    -   year
+
+    -   sex
+
+    -   age
+
+    -   race_eth
+
+    -   pop
+
+-   .rds
+
+-   lhj-population-total
+
+Markdown files and important things they do
+
+1
+
+2
+
+3
+
+4
+
+Raw Data extraction:
+
+-   Step 1 above uses Department of Finance "P3 Historical and Current
+    Complete State and County Projections" Datasets
+
+    1.  Sex-Age-Race/Ethnicity population estimates from 2000-2022
+
+        *historical* data files from xx to xx have been downloaded to
+        xxx, processed with xxx; and final data saved to xxx. This step
+        should never needs to be repeated data (XX file)
+
+    2.  for xx to xx are need to be downloaded to xxx; the files are
+        processed in . files names may need to be added/update in xxx
+        (XX file)
+
+-   Step 2 above uses US Decennial Census files xxx
+
+    -   Data for 2000 and 2010
+
+    -   Extracted using R's tidycensus package. This method requires a
+        Census API key, which can be obtained
+        [here](https://api.census.gov/data/key_signup.html). Estimates
+        are pulled from the 2000, 2010, and 2020 Decennial.
+
+    -   Data for 2020, and eventually 2030 xxx
+
+-   Optional Step 1a uses DOF "E4" and "E6" files
+
+    -   Department of Finance - E-4 Historical Population Estimates for
+        Cities, Counties, and the State
+
+        -   January Estimates from 1970-2022
+
+        -   recent
+
+    -   Department of Finance - E-6 Population Estimates and Components
+        of Change by County
+
+        -   July Estimates from 1947-2022
+
+        -   recent
+
+The processed datasets are saved as csv and RDS files into
+intermediatePopData/:
+
+1.  census-city-ars
+2.  dof-e4-processed
+3.  dof-e6-processed
+4.  dof-p3-processed
