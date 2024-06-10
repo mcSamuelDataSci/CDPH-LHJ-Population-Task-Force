@@ -26,8 +26,11 @@ editor_options:
 
 h2 {font-size:20px;}
 
+h3 {font-size:18px;}
+
 </style>
 ```
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.align = "center", warning = F, message = F)
 
@@ -88,7 +91,7 @@ flextable(iTable) %>%
            ),
            ref_symbols = c("**"),
            part = "body") %>%
-  fontsize(size = 8, part = "all") %>% padding(padding=2, part="all") %>%
+  fontsize(size = 12, part = "all") %>% padding(padding=2, part="all") %>%
   set_table_properties(layout = "autofit")
 ```
 
@@ -106,14 +109,14 @@ flextable(iTable) %>%
 
 -   American Community Survey (ACS) Public Use Microdata Sample (PUMS)
 
-    -   [American Community Survey (ACS) Public Use Microdata Sample (PUMS) "home"](https://www.census.gov/programs-surveys/acs/microdata.html)
+    -   [American Community Survey (ACS) Public Use Microdata Sample (PUMS) homepage](https://www.census.gov/programs-surveys/acs/microdata.html)
     -   [Tool for accessing data from ACS PUMS](https://data.census.gov/mdat/#/)
     -   [PUMS documentation, data dictionary, code sets, etc.](https://www.census.gov/programs-surveys/acs/microdata/documentation.html)
     -   ["Understanding and Using the American Community Survey Public Use Microdata Sample Files" (pdf)](https://www.census.gov/content/dam/Census/library/publications/2021/acs/acs_pums_handbook_2021.pdf)
 
 -   "Regular" American Community Survey (ACS)
 
-    -   [American Community Survey (ACS) "home"](https://www.census.gov/programs-surveys/acs)
+    -   [American Community Survey (ACS) homepage](https://www.census.gov/programs-surveys/acs)
     -   [Tool for accessing data from ACS](https://data.census.gov/)
     -   [ACS methodology](https://www.census.gov/programs-surveys/acs/methodology.html)
     -   [ACS Technical documentation, code lists, definitions, etc.](https://www.census.gov/programs-surveys/acs/technical-documentation.html)
@@ -122,7 +125,7 @@ flextable(iTable) %>%
 
 -   There are two data sources for obtaining disaggregated race and ethnicity data - "regular" ACS and ACS PUMS.
 
--   The two data sources for disaggregated data have different limitations. Data from the "regular" ACS does not break down the data on race **by** ethnicity. In other words, the common construction of, for example, "non-Hispanic Black" or "non-Hispanic Native American/Alaska Native" is not available from this data source. But, data on detailed race groups and detailed ethnicity groups alone **are** available down to the census tract level.
+-   The two data sources for disaggregated data have different limitations. Data from the "regular" ACS does not break down the data on detailed race **by** ethnicity. In other words, the common construction of, for example, "non-Hispanic Chinese" or "non-Hispanic Samoan" is not available from this data source. But, data on detailed race groups and detailed ethnicity groups alone **are** available down to the census tract level.
 
 -   Data from the ACS Public Use Microdata Sample (PUMS) are only available at four geography levels -- U.S. regions, divisions, states, and [Public Use Microdata Areas (PUMAs)](https://www.census.gov/programs-surveys/geography/guidance/geo-areas/pumas.html).
 
@@ -141,7 +144,7 @@ flextable(iTable) %>%
 
 ## Note on PUMAs.
 
--   The map below shows an overlay of counties and PUMAs, and shows which counties are wholly described by one or more PUMA (e.g. Alameda and Yolo County respectively) and which counties are combined with other counties to create a PUMA (e.g. parts of Monterey County and all of San Benito county). In addition to this map, an excel file, **PUMA_to_county_link.xlsx**, links PUMAs to counties and is included in this "repository".
+-   The map below shows an overlay of counties and PUMAs (2019 boundaries), and shows which counties are wholly described by one or more PUMA (e.g. Alameda and Yolo County respectively) and which counties are combined with other counties to create a PUMA (e.g. parts of Monterey County and all of San Benito county). In addition to this map, an excel file, **PUMA_to_county_link.xlsx**, links PUMAs to counties and is included in this "repository".
 
 ```{r, echo = F}
 # Maybe add hover-over or county labels
@@ -150,7 +153,7 @@ library(tigris)
 pumaB   <- pumas(state = "CA", class = "sf", cb = TRUE, year = 2019, progress_bar = FALSE)
 countyB <- counties(state = "CA", class = "sf", cb = TRUE, year = 2019, progress_bar = FALSE )
 
-
+# remotes::install_github("rspatial/terra")
 library(tmap)
 tmap_mode("view")
 # popup.vars=c("County" = "NAME")
@@ -168,6 +171,31 @@ tm_shape(countyB) +
 ```
 
 <br>
+
+-   The map below shows an overlay of counties and PUMAs (2020 boundaries). An excel file linking 2020 PUMA boundaries to counties will be included in this "repository" soon.
+
+```{r, echo = F}
+# Maybe add hover-over or county labels
+
+library(tigris)
+pumaB   <- pumas(state = "CA", class = "sf", cb = TRUE, year = 2020, progress_bar = FALSE)
+countyB <- counties(state = "CA", class = "sf", cb = TRUE, year = 2020, progress_bar = FALSE )
+
+library(tmap)
+tmap_mode("view")
+# popup.vars=c("County" = "NAME")
+ 
+tm_shape(countyB) + 
+  tm_polygons(alpha=0, fill= NA, id="NAME", border.col = "gray", lwd = 6) + 
+  tm_shape(pumaB) + 
+  tm_borders(col="red") +
+  tm_layout(frame = FALSE, legend.text.size = 1) + 
+  tm_add_legend(type=c("fill"), 
+                col=c("red","gray"),
+                labels=c("PUMA boundaries","County boundaries")) +
+  tm_view(set.zoom.limits = c(6, 18))
+
+```
 
 ## Excel (and .csv) files generated for your use include:
 
@@ -302,7 +330,7 @@ While the Federal government Office of Management and Budget specifies minimum s
 
 <br>
 
-Efforts to explore health outcomes at more granular levels are necessary since significant heterogeneity exists within the larger, aggregated racial and ethnic groupings. For example, mortality rates, socioeconomic status, and COVID-19 and tuberculosis rates all vary widely in California for groups listed within the Asian population (see data brief [here](https://www.cdph.ca.gov/Programs/FCSD/Pages/AB-1726-Asian-and-Pacific-Islander-Data-Disaggregation.aspx)). Similar levels of within group diversity can be found within all of the OMB minimum classification groups. When data are aggregated, information is lost and smaller, often marginalized groups can become hidden, perpetuating longstanding disparities. Conversely, analysis that considers the social and cultural context to explore more specific, disaggregated "sub-groups" can inform public health strategies. Interventions tailored to the unique obstacles and challenges faced by specific communities will be more effective in addressing the root causes of health disparities and result in more equitable outcomes.
+Efforts to explore health outcomes at more granular levels are necessary since significant heterogeneity exists within the larger, aggregated racial and ethnic groupings. For example, mortality rates, socioeconomic status, and COVID-19 and tuberculosis rates all vary widely in California for groups listed within the Asian population (see data brief [here](https://www.cdph.ca.gov/Programs/OPP/Pages/AB-1726-Asian-and-Pacific-Islander-Data-Disaggregation.aspx)). Similar levels of within group diversity can be found within all of the OMB minimum classification groups. When data are aggregated, information is lost and smaller, often marginalized groups can become hidden, perpetuating longstanding disparities. Conversely, analysis that considers the social and cultural context to explore more specific, disaggregated "sub-groups" can inform public health strategies. Interventions tailored to the unique obstacles and challenges faced by specific communities will be more effective in addressing the root causes of health disparities and result in more equitable outcomes.
 
 <br>
 
