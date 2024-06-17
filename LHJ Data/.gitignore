@@ -3,17 +3,16 @@ STD SAS files
 Census
 Exploratory
 Standards/census.api.key.txt
+Standards/censusVintageLink.xlsx
+Standards/createDecennialLink.R
+Standards/places_2000_2010_link.xls
 intermediatePopData/Archive
-intermediatePopData/dof-p3-processed-current.csv
-intermediatePopData/dof-p3-processed-historical.csv
-intermediatePopData/census-city-ars-current.csv
-intermediatePopData/census-city-ars-historical.csv
-finalPopData/lhj-population-ars.csv
-finalPopData/lhj-population-ars-adjJuly.csv
+intermediatePopData/*.csv
+finalPopData/*.csv
 finalPopData/Archive
-finalPopData/lhj-population-ars-STDCB.csv
-finalPopData/lhj-population-ars-STDCB.RDS
+4-Create-Data-Dictionary.R
 E1
 Census Vintage
 Archive
 .Rproj.user
+.Rhistory

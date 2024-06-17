@@ -6,19 +6,12 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, eval = FALSE)
 ```
 
 # Introduction
 
-This RMarkdown file creates a dataset with total July population estimates for:
-
--   All 58 counties
--   The 3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
--   Alameda Health Department
--   Los Angeles Health Department
-
-Note: The dataset created from this Rmarkdown is used in *3-Create-LHJ-Population-ARS.Rmd* to adjust the DOF Jan 1st P3 estimates to July 1st estimates. Therefore, this Rmarkdown file must be executed only if the adjustment of DOF P3 data is needed or desired.
+This RMarkdown file creates a dataset with total July population estimates. This dataset is used in *3-Create-LHJ-Population-ARS.Rmd* to perform the optional step of adjusting the DOF Jan 1st P3 estimates to July 1st estimates. Therefore, this Rmarkdown file must be executed only if the adjustment of DOF P3 data is needed or desired.
 
 ## Population Data Required
 
@@ -26,11 +19,11 @@ Four outputs are used from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-
 
 1.  *intermediatePopData/dof-e4-processed-historical.RDS*
 
-    1.  Processed DOF January 1st total population estimates for cities and counties from 1970-2010
+    1.  Contains city to county proportions (using January 1st estimates) from 1970-2010.
 
 2.  *intermediatePopData/dof-e4-processed-current.RDS*
 
-    1.  Processed DOF January 1st total population estimates for cities and counties from 2011-2023
+    1.  Contains city to county proportions (using January 1st estimates) from 2011-2023.
 
 3.  *intermediatePopData/dof-e6-processed-historical.RDS*
 
@@ -38,26 +31,17 @@ Four outputs are used from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-
 
 4.  *intermediatePopData/dof-e6-processed-current.RDS*
 
-    1.  Processed DOFJuly 1st estimates for counties from 2010-2023
+    1.  Processed DOF July 1st estimates for counties from 2010-2023
 
 ## Method
 
-To calculate total July population estimates for the 3 cities:
-
-1.  Calculate the proportion of each city's January population to its respective county January population
-
-    1.  Berkeley/Alameda
-
-    2.  Long Beach/Los Angeles
-
-    3.  Pasadena/Los Angeles
-
-2.  Multiply each proportion to its respective county July population to get a city July population estimate.
+To calculate total July population estimates for the 3 cities, multiply each city-to-county proportion to its respective county July population to get a city July population estimate.
 
 Then, to calculate total July population estimates for Alameda and Los Angeles Health Departments:
 
--   Alameda HD July population = Alameda County July population - Berkeley City July population
--   Los Angeles HD July population = Los Angeles County July population - (Long Beach City July population + Pasadena City July population)
+1.  Alameda HD July population = Alameda County July population - Berkeley City July population
+
+2.  Los Angeles HD July population = Los Angeles County July population - (Long Beach City July population + Pasadena City July population)
 
 ## Data File Outputs
 
@@ -67,22 +51,6 @@ Output is saved as a csv and RDS file into *finalPopData/*:
 2.  *lhj-population-total.csv*
 
 # Setup
-
-R version 4.0.4 (2021-02-15)
-
-Platform: x86_64-pc-linz-gnu (64-bit)
-
-RStudio Workbench Version 1.4.1717-3: "Juliet Rose" (23fd1677, 2021-05-27) for CentOS 8
-
-Package versions:
-
-\- readxl - 1.3.1
-
-\- readr - 2.1.4
-
-\- dplyr - 1.1.3
-
-\- tidyr - 1.3.0
 
 ```{r}
 

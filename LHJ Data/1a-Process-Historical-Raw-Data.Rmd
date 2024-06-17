@@ -6,19 +6,14 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, eval = FALSE)
 ```
 
 # Introduction
 
-Note: This Rmarkdown only needs to be executed once to produce the historical population datasets. Once produced, this file never needs to be ran again **unless** any of the historical data files (listed further below) are updated after April 3, 2024.
+This RMarkdown file extracts and processes historical population data.
 
-This RMarkdown file extracts and processes historical population data necessary for creating sex-age-race/ethnicity estimates for all 61 California Local Health Jurisdictions:
-
--   58 counties
--   3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
--   Alameda LHJ
--   Los Angeles LHJ
+Note: This Rmarkdown only needs to be executed once to produce the historical population datasets. Once produced, this file never needs to be ran again **unless** any of the historical data files (listed further below) are updated after June 14, 2024.
 
 ## Population Data Required:
 
@@ -74,30 +69,6 @@ The processed datasets are saved as csv and RDS files into *intermediatePopData/
 
 ## Setup
 
-R version 4.0.4 (2021-02-15)
-
-Platform: x86_64-pc-linz-gnu (64-bit)
-
-RStudio Workbench Version 1.4.1717-3: "Juliet Rose" (23fd1677, 2021-05-27) for CentOS 8
-
-Package versions:
-
--   readxl - 1.3.1
-
--   readr - 2.1.4
-
--   dplyr - 1.1.3
-
--   tidyr - 1.3.0
-
--   tidycensus - 1.5
-
--   janitor - 2.1.0
-
--   stringr - 1.5.0
-
--   lubridate - 1.9.3
-
 ```{r}
 
 # Setup ========================================================================================
@@ -130,38 +101,18 @@ outputDir <- "intermediatePopData/"
 
 ### (Required) Department of Finance's **Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail**
 
-Steps:
-
-1.  Read in relationship files, located in *Standards/*
-
-    1.  *countyLink.xlsx* - Used for linking DOF's county codes to county names.
-
-    2.  *raceLink.xlsx* - Used for linking DOF's race/ethnicity codes to a standard set of race/ethnicity labels.
-
-2.  Read in DOF's "Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail" file
-
-    1.  Location: *P3/Intercensal_2000-2010_DBInput.csv*
-
-    2.  Contains Sex-Age-Race/Ethnicity population estimates for April 1, 2000 and 2010 and July 1, 2000 through 2010 estimates. July 1, 2000 through July 1, 2009 estimates are used.
-
-3.  Process data
-
-4.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *dof-p3-processed-historical.RDS*
-
-    2.  *dof-p3-processed-historical.csv*
-
 ```{r}
 
-# County relationship file =======
+# County relationship file: Used for linking DOF's county codes to county names. =======
 countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
   select(county = countyName, CountyCode = cdphcaCountyTxt)
 
+# Race labels crosswalk: Used for linking DOF's race/ethnicity codes to a standard set of race/ethnicity labels.
 raceLink <- read_xlsx("Standards/raceLink.xlsx") %>% 
   select(race7, raceEth = raceNameShort)
 
 # Read in and process data =======
+# Contains Sex-Age-Race/Ethnicity population estimates for April 1, 2000 and 2010 and July 1, 2000 through 2010 estimates. July 1, 2000 through July 1, 2009 estimates are used.
 p3_historical <- read_csv("P3/Intercensal_2000-2010_DBInput.csv") %>% 
   mutate(year  = as.numeric(str_sub(Year,5,9)),
          month = as.numeric(str_sub(Year,1,1))) %>%    
@@ -180,7 +131,7 @@ p3_historical <- read_csv("P3/Intercensal_2000-2010_DBInput.csv") %>%
   select(county, year, sex, raceEth, age, population) %>% 
   filter(year != 2010) # Remove 2010 here?
 
-# Save data =======
+# Save data as both csv and RDS into into intermediatePopData/ =======
 saveRDS(p3_historical, paste0(outputDir, "dof-p3-processed-historical.RDS"))
 write_csv(p3_historical, paste0(outputDir, "dof-p3-processed-historical.csv"))
 
@@ -188,27 +139,7 @@ write_csv(p3_historical, paste0(outputDir, "dof-p3-processed-historical.csv"))
 
 ### (Required) Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
 
-Steps:
-
-1.  Load in Census API key into session. An API key can be obtained from [here](https://api.census.gov/data/key_signup.html).
-
-    1.  Note: Set the **.ckey** object to your Census API key.
-
-2.  Read in decennial relationship files, which link table IDs to their corresponding sex by age by R/E stratas
-
-3.  Call the Census API to pull county and city-level sex by age by race/ethnicity estimates from the 2000 and 2010 Decennial
-
-4.  Process outputs from Step 3
-
-5.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *census-city-ars-historical.RDS*
-
-    2.  *census-city-ars-historical.csv*
-
-    3.  *census-county-ars-historical.RDS*
-
-    4.  *census-county-ars-historical.csv*
+Note: Census API key required, which can be obtained from [here](https://api.census.gov/data/key_signup.html).
 
 ```{r}
 
@@ -224,7 +155,7 @@ decLink2000 <- read_excel("Standards/decennialLink.xlsx", sheet = "2000 ARS")
 decLink2010 <- read_excel("Standards/decennialLink.xlsx", sheet = "2010 ARS")
 
 # Custom Function to pull decennial census data =============================
-# Calls tidycensus' get_decennial() function, and links the resultant data frame to our census dcennial relationship file
+# Calls tidycensus' get_decennial() function, and links the resultant data frame to our census decennial relationship file
 
 # Function arguments:
 # - myYear (num): a decennial year
@@ -281,19 +212,7 @@ write_csv(censusFinal_county, paste0(outputDir, "census-county-ars-historical.cs
 
 ### (Optional) Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
 
-Steps:
-
-1.  Read in files from *E4/Clean/*
-
-    1.  *E4-1971-1980.xlsx*
-
-    2.  *E4-1981-1990.xlsx*
-
-    3.  *E4-1991-2000.xlsx*
-
-    4.  *E4-2001-2010.xlsx*
-
-2.  Data processing which includes
+1.  Data processing steps include:
 
     1.  Filtering the city portion of the data on Berkeley, Long Beach, and Pasadena
 
@@ -306,12 +225,6 @@ Steps:
         2.  Pasadena population / Los Angeles County population
 
         3.  Long Beach population / Los Angeles County population
-
-3.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *dof-e4-processed-historical.RDS*
-
-    2.  *dof-e4-processed-historical.csv*
 
 ```{r}
 
@@ -360,26 +273,6 @@ write_csv(e4_final, paste0(outputDir, "dof-e4-processed-historical.csv"))
 ```
 
 ### (Optional) Department of Finance - E-6 Population Estimates and Components of Change by County
-
-Steps:
-
-1.  Read in files from *E6/Clean/*
-
-    1.  *E6-1947-1969.xlsx*
-
-    2.  *E6-1970-1989.xlsx*
-
-    3.  *E6-1990-1999.xlsx*
-
-    4.  *E6-2000-2009.xlsx*
-
-2.  Process data
-
-3.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *dof-e6-processed-historical.RDS*
-
-    2.  *dof-e6-processed-historical.csv*
 
 ```{r}
 

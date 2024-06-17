@@ -6,19 +6,14 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, eval = FALSE)
 ```
 
 # Introduction
 
+This RMarkdown file extracts and processes current population data.
+
 Note: This Rmarkdown is largely the same as *1a-Process-Historical-Raw-Data.Rmd*, except that it processes recent and current population datasets. Therefore, this file must be maintained, updated, and executed whenever a new population data file (either from Department of Finance or Census Decennial) is released.
-
-This RMarkdown file extracts and processes current population data necessary for creating sex-age-race/ethnicity estimates for all 61 California Local Health Jurisdictions:
-
--   58 counties
--   3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
--   Alameda LHJ
--   Los Angeles LHJ
 
 ## Population Data Required:
 
@@ -82,30 +77,6 @@ The processed datasets are saved as csv and RDS files into *intermediatePopData/
 
 ## Setup
 
-R version 4.0.4 (2021-02-15)
-
-Platform: x86_64-pc-linz-gnu (64-bit)
-
-RStudio Workbench Version 1.4.1717-3: "Juliet Rose" (23fd1677, 2021-05-27) for CentOS 8
-
-Package versions:
-
--   readxl - 1.3.1
-
--   readr - 2.1.4
-
--   dplyr - 1.1.3
-
--   tidyr - 1.3.0
-
--   tidycensus - 1.5
-
--   janitor - 2.1.0
-
--   stringr - 1.5.0
-
--   lubridate - 1.9.3
-
 Note: The final product (LHJ-level sex-age-race/ethnicity population estimates - created in *3-Create-LHJ-Population-ARS.Rmd*) spans from 2000 to the year value set to the **currentYear** object below.
 
 ```{r}
@@ -143,41 +114,14 @@ outputDir <- "intermediatePopData/"
 
 ### (Required) Department of Finance's P3 Complete State and County Projections Dataset
 
-Steps:
-
-1.  Read in relationship files, located in *Standards/*
-
-    1.  *countyLink.xlsx* - Used for linking DOF's county fip codes to county names.
-
-    2.  *raceLink.xlsx* - Used for linking DOF's race/ethnicity codes to a standard set of race/ethnicity labels.
-
-2.  Read in DOF's P3 Complete State and County Projections files
-
-    1.  *P3/P3_Complete_2010-2060.csv*
-
-        1.  2010-2019 population estimates are used.
-
-    2.  *P3/P3_Complete_2020-2060.csv*
-
-        1.  2020-2023 population estimates are used.
-
-    3.  Note: Both files contain January 1st sex by age by race/ethnicity population estimates.
-
-3.  Process data
-
-4.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *dof-p3-processed-current.RDS*
-
-    2.  *dof-p3-processed-current.csv*
-
 ```{r}
 
-# County relationship file =======
+# County relationship file: Used for linking DOF's county codes to county names. =======
 countyLink <- read_xlsx("Standards/countyLink.xlsx") %>% 
   select(county = countyName, fips = FIPSCounty) %>% 
   mutate(fips = as.numeric(paste0("6", fips)))
 
+# Race labels crosswalk: Used for linking DOF's race/ethnicity codes to a standard set of race/ethnicity labels.
 raceLink <- read_xlsx("Standards/raceLink.xlsx") %>% 
   select(race7, raceEth = raceNameShort) %>% 
   filter(!is.na(race7))
@@ -219,27 +163,7 @@ write_csv(p3_final, paste0(outputDir, "dof-p3-processed-current.csv"))
 
 ### (Required) Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
 
-Steps:
-
-1.  Load in Census API key into session. An API key can be obtained from [here](https://api.census.gov/data/key_signup.html).
-
-    1.  Note: Set the **.ckey** object to your Census API key.
-
-2.  Read in decennial relationship files, which link table IDs to their corresponding sex by age by R/E stratas
-
-3.  Call the Census API to pull county and city-level sex by age by race/ethnicity estimates from the 2020 Decennial
-
-4.  Process outputs from Step 3
-
-5.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *census-city-ars-currentRDS*
-
-    2.  *census-city-ars-current.csv*
-
-    3.  *census-county-ars-current.RDS*
-
-    4.  *census-county-ars-current.csv*
+Note: Census API key required, which can be obtained from [here](https://api.census.gov/data/key_signup.html).
 
 ```{r}
 
@@ -309,15 +233,7 @@ write_csv(censusFinal_county, paste0(outputDir, "census-county-ars-current.csv")
 
 ### (Optional) Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
 
-Steps:
-
-1.  Read in files from *E4/Clean/*
-
-    1.  *E4-2011-2020.xlsx*
-
-    2.  *E4-2021-cy.xlsx*
-
-2.  Data processing which includes
+1.  Data processing steps include:
 
     1.  Filtering the city portion of the data on Berkeley, Long Beach, and Pasadena
 
@@ -330,12 +246,6 @@ Steps:
         2.  Pasadena population / Los Angeles County population
 
         3.  Long Beach population / Los Angeles County population
-
-3.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *dof-e4-processed-current.RDS*
-
-    2.  *dof-e4-processed-current.csv*
 
 ```{r}
 
@@ -382,22 +292,6 @@ write_csv(e4_final, paste0(outputDir, "dof-e4-processed-current.csv"))
 ```
 
 ### (Optional) Department of Finance - E-6 Population Estimates and Components of Change by County
-
-Steps:
-
-1.  Read in files from *E6/Clean/*
-
-    1.  *E6-2010-2019-.xlsx*
-
-    2.  *E6-2020-cy.xlsx*
-
-2.  Process data
-
-3.  Save data as .RDS and .csv into *intermediatePopData/*
-
-    1.  *dof-e6-processed-currentRDS*
-
-    2.  *dof-e6-processed-current.csv*
 
 ```{r}
 
