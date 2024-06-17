@@ -38,7 +38,7 @@ Outputs from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-Current-Raw-Da
 
 (Optional) One output is used from 2-Create-LHJ-Population-Total.Rmd
 
-1.  finalPopData/lhj-population-total.RDS
+1.  intermediatePopData/lhj-population-total.RDS
 
     1.  Total July population estimates
 
@@ -94,7 +94,7 @@ p3 <- bind_rows(p3_historical, p3_current)
 
 # July 1 city, HD, and county totals - for optional adjustment
 if (adjust) {
-  lhjTotal <- readRDS(paste0(outputDir, "lhj-population-total.RDS"))
+  lhjTotal <- readRDS(paste0(inputDir, "lhj-population-total.RDS"))
 }
 
 

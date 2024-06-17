@@ -11,7 +11,7 @@
 
 <meta name="author" content="Jaspreet Kang" />
 
-<meta name="date" content="2024-06-14" />
+<meta name="date" content="2024-06-17" />
 
 <title>Create LHJ Sex-Age-Race/Ethnicity Population Data</title>
 
@@ -171,7 +171,7 @@ pre code {
 
 <h1 class="title toc-ignore">Create LHJ Sex-Age-Race/Ethnicity Population Data</h1>
 <h4 class="author">Jaspreet Kang</h4>
-<h4 class="date">June 14, 2024</h4>
+<h4 class="date">June 17, 2024</h4>
 
 </div>
 
@@ -205,7 +205,7 @@ pre code {
 </ol>
 <p>(Optional) One output is used from 2-Create-LHJ-Population-Total.Rmd</p>
 <ol style="list-style-type: decimal">
-<li><p>finalPopData/lhj-population-total.RDS</p>
+<li><p>intermediatePopData/lhj-population-total.RDS</p>
 <ol style="list-style-type: decimal">
 <li>Total July population estimates</li>
 </ol></li>
@@ -259,7 +259,7 @@ p3 &lt;- bind_rows(p3_historical, p3_current)
 
 # July 1 city, HD, and county totals - for optional adjustment
 if (adjust) {
-  lhjTotal &lt;- readRDS(paste0(outputDir, &quot;lhj-population-total.RDS&quot;))
+  lhjTotal &lt;- readRDS(paste0(inputDir, &quot;lhj-population-total.RDS&quot;))
 }</code></pre>
 </div>
 <div id="optional-perform-adjustment" class="section level2">

@@ -45,7 +45,7 @@ Then, to calculate total July population estimates for Alameda and Los Angeles H
 
 ## Data File Outputs
 
-Output is saved as a csv and RDS file into *finalPopData/*:
+Output is saved as a csv and RDS file into *intermediatePopData/*:
 
 1.  *lhj-population-total.RDS*
 2.  *lhj-population-total.csv*
@@ -71,7 +71,7 @@ cities <- c("Berkeley", "Long Beach", "Pasadena")
 inputDir <- "intermediatePopData/"
 
 # Directory to save output files to
-outputDir <- "finalPopData/"
+outputDir <- inputDir
 
 ```
 
