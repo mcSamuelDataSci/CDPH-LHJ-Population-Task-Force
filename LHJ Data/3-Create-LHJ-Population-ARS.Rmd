@@ -52,7 +52,7 @@ Final outputs are saved as csv and RDS files in finalPopData/:
 Note: Set the object **adjust** below to TRUE if final LHJ ARS data should be adjusted from January estimates to July estimates; Otherwise set **adjust** to FALSE
 
 ```{r}
-adjust <- FALSE
+adjust <- TRUE
 
 # Disable scientific notation
 options(scipen=999)
@@ -317,6 +317,9 @@ lhjARS <- bind_rows(countyARS, cityARS_final, hdARS) %>%
   select(county_lhj, year, sex, age, raceEth, population) %>% 
   arrange(county_lhj, year, sex, age, raceEth)
 
+lhjARS_csv <- lhjARS %>% # Temporary: 2000- csv too large to push to github
+  filter(year >= 2010)
+
 # Checks -----------------------------------------
 if (FALSE) {
   colSums(is.na(lhjARS))
@@ -327,10 +330,10 @@ if (FALSE) {
 
 if (adjust) {
   saveRDS(lhjARS, paste0(outputDir, "lhj-population-ars-adjJuly.RDS"))
-  write_csv(lhjARS, paste0(outputDir, "lhj-population-ars-adjJuly.csv"))
+  write_csv(lhjARS_csv, paste0(outputDir, "lhj-population-ars-adjJuly.csv"))
 } else {
   saveRDS(lhjARS, paste0(outputDir, "lhj-population-ars.RDS"))
-  write_csv(lhjARS, paste0(outputDir, "lhj-population-ars.csv"))
+  write_csv(lhjARS_csv, paste0(outputDir, "lhj-population-ars.csv"))
 }
 
 ```

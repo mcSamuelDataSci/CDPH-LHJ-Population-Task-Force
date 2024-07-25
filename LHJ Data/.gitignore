@@ -8,7 +8,6 @@ Standards/createDecennialLink.R
 Standards/places_2000_2010_link.xls
 intermediatePopData/Archive
 intermediatePopData/*.csv
-finalPopData/*.csv
 finalPopData/Archive
 4-Create-Data-Dictionary.R
 E1
