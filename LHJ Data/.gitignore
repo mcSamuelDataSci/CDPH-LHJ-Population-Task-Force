@@ -15,7 +15,6 @@ intermediatePopData/Archive
 intermediatePopData/*.csv
 finalPopData/Archive
 finalPopData/archive_20240807
-finalPopData/lhj-pop-ars-2000-cy.csv
 4-Create-Data-Dictionary.R
 E1
 Census Vintage
