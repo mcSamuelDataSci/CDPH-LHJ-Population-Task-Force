@@ -1,3 +1,4 @@
+app
 P3
 STD SAS files
 Census
@@ -6,12 +7,20 @@ Standards/census.api.key.txt
 Standards/censusVintageLink.xlsx
 Standards/createDecennialLink.R
 Standards/places_2000_2010_link.xls
+Standards/getCensusTotals.R
+E6/archive
+E4/Raw/archive
+E4/Clean/archive
 intermediatePopData/Archive
 intermediatePopData/*.csv
 finalPopData/Archive
+finalPopData/archive_20240807
+finalPopData/lhj-pop-ars-2000-cy.csv
 4-Create-Data-Dictionary.R
 E1
 Census Vintage
+make summary tables.R
+Methods - TF vs STDCB.docx
 Archive
 .Rproj.user
 .Rhistory

@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, eval = FALS
 
 # Introduction
 
-This RMarkdown file creates a dataset with total July population estimates. This dataset is used in *3-Create-LHJ-Population-ARS.Rmd* to perform the optional step of adjusting the DOF Jan 1st P3 estimates to July 1st estimates. Therefore, this Rmarkdown file must be executed only if the adjustment of DOF P3 data is needed or desired.
+This RMarkdown file creates a dataset with total July LHJ population estimates. This dataset is used in *3-Create-LHJ-Population-ARS.Rmd* to perform the step of adjusting the DOF age-race-sex estimates to these estimates.
 
 ## Population Data Required
 
@@ -56,7 +56,7 @@ Output is saved as a csv and RDS file into *intermediatePopData/*:
 
 
 # Disable scientific notation
-options(scipen=999)
+options(scipen=999) 
 
 ## Load packages ----------------------------------------------
 library(readxl) # Read in excel files

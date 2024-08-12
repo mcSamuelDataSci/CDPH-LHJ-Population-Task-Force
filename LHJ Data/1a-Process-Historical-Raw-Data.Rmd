@@ -1,6 +1,6 @@
 ---
 title: "Pulling and Processing Historical Raw Population Data"
-author: "Jaspreet Kang"
+author: "CDPH/LHJ Population Task Force"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
@@ -31,10 +31,6 @@ The population data files extracted and processed include:
 
     1.  Extracted using R's [tidycensus](https://github.com/walkerke/tidycensus) package. This method requires a Census API key, which can be obtained [here](https://api.census.gov/data/key_signup.html). Estimates are pulled from the 2000 and 2010 Decennial.
 
-### Optional
-
-Department of Finance P3 data (processed in *1b-Process-Current-Raw-Data.Rmd*) are January 1 estimates. The files below allow for the adjustment of DOF P3 data to July 1 population rather than January 1.
-
 3.  Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
 
     1.  Excel files of these data were downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/), and are stored in *E4/Raw/*. The raw data were then manually formatted for easier processing and stored into *E4/Clean/*.
@@ -55,7 +51,7 @@ The processed datasets are saved as csv and RDS files into *intermediatePopData/
 
 1.  *dof-p3-processed-historical*
 
-    1.  Note: This file is processed data of the DOF annual intercensal sex-age-race/ethnicity population estimates (from 2000-2009) at the county-level. We call it "P3" for convenience, since this data is eventually combined with the current DOF P3 data which also contains sex-age-race/ethnicity population estimates at the county-level. One major difference is the 2000-2009 annual intercensal data are July 1st estimates, whereas the P3 data are Jan 1st estimates.
+    1.  Note: This file is processed data of the DOF annual intercensal sex-age-race/ethnicity population estimates (from 2000-2009) at the county-level. We call it "P3" or "DOF-ARS" for convenience, since this data is eventually combined with the current DOF P3 data which also contains sex-age-race/ethnicity population estimates at the county-level.
 
 2.  *census-city-ars-historical*
 
@@ -99,7 +95,7 @@ outputDir <- "intermediatePopData/"
 
 ## Process and Save Data
 
-### (Required) Department of Finance's **Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail**
+### Department of Finance's **Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail**
 
 ```{r}
 
@@ -137,7 +133,7 @@ write_csv(p3_historical, paste0(outputDir, "dof-p3-processed-historical.csv"))
 
 ```
 
-### (Required) Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
+### Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
 
 Note: Census API key required, which can be obtained from [here](https://api.census.gov/data/key_signup.html).
 
@@ -210,7 +206,7 @@ saveRDS(censusFinal_county, paste0(outputDir, "census-county-ars-historical.RDS"
 write_csv(censusFinal_county, paste0(outputDir, "census-county-ars-historical.csv"))
 ```
 
-### (Optional) Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
+### Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
 
 1.  Data processing steps include:
 
@@ -272,7 +268,7 @@ write_csv(e4_final, paste0(outputDir, "dof-e4-processed-historical.csv"))
 
 ```
 
-### (Optional) Department of Finance - E-6 Population Estimates and Components of Change by County
+### Department of Finance - E-6 Population Estimates and Components of Change by County
 
 ```{r}
 

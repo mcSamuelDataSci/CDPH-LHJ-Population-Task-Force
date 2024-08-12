@@ -1,6 +1,6 @@
 ---
 title: "Pulling and Processing Recent Raw Population Data"
-author: "Jaspreet Kang"
+author: "CDPH/LHJ Population Task Force"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
@@ -29,7 +29,7 @@ The population data files extracted and processed include:
 
             2.  File not available for download on DOF's website.
 
-            3.  2010-2019 population estimates are used.
+            3.  2010-2023 population estimates are used.
 
         2.  *P3/P3_Complete_2020-2060.csv*
 
@@ -39,15 +39,11 @@ The population data files extracted and processed include:
 
             3.  2020-2023 population estimates are used.
 
-        3.  Note: Both files contain January 1st sex by age by race/ethnicity population estimates at the county-level.
+        3.  Note: Both files contain sex by age by race/ethnicity population estimates at the county-level.
 
-2.  2020 Census Decennial for county- and city-level Sex-Age-Race/Ethnicity population (April 1st estimates)
+2.  2020 Census Decennial for county- and city-level Sex-Age-Race/Ethnicity population
 
     1.  Extracted using R's [tidycensus](https://github.com/walkerke/tidycensus) package. This method requires a Census API key, which can be obtained [here](https://api.census.gov/data/key_signup.html). Estimates are pulled from the 2020 Decennial.
-
-### Optional
-
-Department of Finance P3 data are January 1 estimates. The files below allow for the adjustment of DOF P3 data to July 1 population rather than January 1.
 
 3.  Department of Finance - E-4 Population Estimates for Cities, Counties, and the State
 
@@ -77,7 +73,7 @@ The processed datasets are saved as csv and RDS files into *intermediatePopData/
 
 ## Setup
 
-Note: The final product (LHJ-level sex-age-race/ethnicity population estimates - created in *3-Create-LHJ-Population-ARS.Rmd*) spans from 2000 to the year value set to the **currentYear** object below.
+Note: The final product (LHJ-level sex-age-race/ethnicity population estimates - created in *3-Create-LHJ-Population-ARS.Rmd*) spans from 2000 to the most recent year of data available in DOF-E6 (**currentYear** object below).
 
 ```{r}
 
@@ -99,7 +95,8 @@ library(tidycensus) # For interacting with Census API
 ## Global constants ---------------------------------------------
 
 # Set current year
-currentYear <- 2023
+currentYear <- 2023 # July E6 - most recent year available
+currentYear_Jan <- 2024 # Jan E4 - most recent year available
 
 # City LHJs
 cities <- c("Berkeley", "Long Beach", "Pasadena")
@@ -112,7 +109,7 @@ outputDir <- "intermediatePopData/"
 
 ## Process and Save Data
 
-### (Required) Department of Finance's P3 Complete State and County Projections Dataset
+### Department of Finance's P3 Complete State and County Projections Dataset
 
 ```{r}
 
@@ -128,14 +125,17 @@ raceLink <- read_xlsx("Standards/raceLink.xlsx") %>%
 
 # Read in and process data =======
 
-# 2010-2019 ---------------------
+# Previous DOF P3 ---------------------
 # Vintage 2020 (2021.7.14) version
-p3_10_19 <- read_csv("P3/P3_Complete_2010-2060.csv") %>%
-  filter(year %in% 2010:2019) %>% 
+p3_10_60 <- read_csv("P3/P3_Complete_2010-2060.csv") %>%
   left_join(countyLink, by = "fips") %>% 
   mutate(sex = str_to_title(sex)) %>% 
   select(county, year, sex, race7, age = agerc, population = perwt)
 
+# 2010-currentYear
+p3_10_ <- p3_10_60 %>% 
+  filter(year %in% 2010:currentYear) %>% 
+  mutate(source = "old dof")
 
 # 2020 - Current --------------
 # Vintage 2023 (2024.3.8) version
@@ -143,15 +143,16 @@ p3_20_ <- read_csv("P3/P3_Complete_2020-2060.csv") %>%
   filter(year %in% 2020:currentYear) %>% 
   left_join(countyLink, by = "fips") %>% 
   mutate(sex = str_to_title(sex)) %>% 
-  select(county, year, sex, race7, age = agerc, population = perwt)
+  select(county, year, sex, race7, age = agerc, population = perwt) %>% 
+  mutate(source = "new dof")
 
 # Bind data ===================
-p3_final <- bind_rows(p3_10_19, p3_20_) %>% 
+p3_final <- bind_rows(p3_10_, p3_20_) %>% 
   left_join(raceLink) %>% 
   select(-race7) %>% 
   mutate(age = case_when(age >= 100 ~ "100+", 
                          TRUE ~ as.character(age))) %>% 
-  group_by(county, year, sex, age, raceEth) %>% 
+  group_by(county, year, sex, age, raceEth, source) %>% 
   summarise(population = sum(population)) %>% 
   ungroup()
 
@@ -161,7 +162,7 @@ write_csv(p3_final, paste0(outputDir, "dof-p3-processed-current.csv"))
 
 ```
 
-### (Required) Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
+### Census Decennial for county and city-level Sex-Age-Race/Ethnicity population
 
 Note: Census API key required, which can be obtained from [here](https://api.census.gov/data/key_signup.html).
 
@@ -208,8 +209,24 @@ pullDecennial <- function(myYear = 2020, myGeography, mySumFile = "dhc", cacheTa
   bind_rows()
 }
 
+# Get total first
+decLink2020_total <- decLink2020 %>% 
+  filter(sex == "Total", age == "Total", raceEth == "Total") %>% 
+  pull(name)
+
+census2020_total_city <- get_decennial(geography = "place", year = 2020, variables = decLink2020_total, state = 06) %>% 
+  mutate(sex = "Total", age = "Total", raceEth = "Total", year = 2020) %>% 
+  select(year, GEOID, NAME, sex, age, raceEth, population = value)
+
+census2020_total_county <- get_decennial(geography = "county", year = 2020, variables = decLink2020_total, state = 06) %>% 
+  mutate(sex = "Total", age = "Total", raceEth = "Total", year = 2020) %>% 
+  select(year, GEOID, NAME, sex, age, raceEth, population = value)
+
 
 ## Call function pullDecennial() to pull 2020 Decennial Census data  ========
+decLink2020 <- decLink2020 %>% 
+  filter(!is.na(tableID))
+
 census2020_ars_city <- pullDecennial(myYear = 2020, myGeography = "place", mySumFile = "dhc")
 census2020_ars_county <- pullDecennial(myYear = 2020, myGeography = "county", mySumFile = "dhc")
 
@@ -217,12 +234,14 @@ census2020_ars_county <- pullDecennial(myYear = 2020, myGeography = "county", my
 censusFinal_city <- census2020_ars_city %>% 
   group_by(year, GEOID, NAME, sex, age, raceEth) %>% 
   summarise(population = sum(population)) %>% 
-  ungroup()
+  ungroup() %>% 
+  bind_rows(census2020_total_city)
 
 censusFinal_county <- census2020_ars_county %>% 
   group_by(year, GEOID, NAME, sex, age, raceEth) %>% 
   summarise(population = sum(population)) %>% 
-  ungroup()
+  ungroup() %>% 
+  bind_rows(census2020_total_county)
 
 saveRDS(censusFinal_city, paste0(outputDir, "census-city-ars-current.RDS"))
 write_csv(censusFinal_city, paste0(outputDir, "census-city-ars-current.csv"))
@@ -231,7 +250,7 @@ saveRDS(censusFinal_county, paste0(outputDir, "census-county-ars-current.RDS"))
 write_csv(censusFinal_county, paste0(outputDir, "census-county-ars-current.csv"))
 ```
 
-### (Optional) Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
+### Department of Finance - E-4 Historical Population Estimates for Cities, Counties, and the State
 
 1.  Data processing steps include:
 
@@ -252,6 +271,11 @@ write_csv(censusFinal_county, paste0(outputDir, "census-county-ars-current.csv")
 # Function for processing E4 files -----------------
 process_e4 <- function(years) { 
   
+  # Test
+  if (F) {
+    years <- 2011:2020
+  }
+  
   colNames <- c("place", paste0("1/1/", years))
   
   fileName <- ifelse(2021 %in% years, 
@@ -260,7 +284,11 @@ process_e4 <- function(years) {
   
   tCountyCity <- lapply(c("County", "City"), function(x) {
     
-    read_excel(fileName, skip = 1, col_names = colNames, sheet = x) %>% 
+    if (F) {
+      x <- "County"
+    }
+    
+    read_excel(fileName, skip = 1, col_names = colNames, sheet = x)%>% 
       select(place, starts_with("1")) %>% 
       mutate(across(starts_with("1"), ~as.numeric(.x))) %>% 
       pivot_longer(-place, names_to = "year", values_to = "population") %>% 
@@ -271,11 +299,11 @@ process_e4 <- function(years) {
   
   tCity <- tCountyCity$City %>% 
     filter(place %in% cities) %>% 
-    mutate(county = ifelse(place == "Berkeley", "Alameda County", "Los Angeles County")) %>% 
+    mutate(county = ifelse(place == "Berkeley", "Alameda", "Los Angeles")) %>% 
     rename(city_population = population) %>% 
     left_join(rename(tCountyCity$County, county = place, county_population = population)) %>% 
     mutate(city_county_proportion = city_population / county_population, 
-           county = sub(" County.*", "", county)) %>% 
+           county = sub(" County.*", "", county)) %>% # In case 'County' label exists
     select(year, place, county, city_county_proportion)
   
 }
@@ -283,15 +311,16 @@ process_e4 <- function(years) {
 # Process and save ---------------------------
 e4_final <- bind_rows(
   process_e4(2011:2020),
-  process_e4(2021:currentYear)
-)
+  process_e4(2021:currentYear_Jan)
+) %>% 
+  filter(year <= currentYear) # Restrict to most recent year available in July E6
 
 saveRDS(e4_final, paste0(outputDir, "dof-e4-processed-current.RDS"))
 write_csv(e4_final, paste0(outputDir, "dof-e4-processed-current.csv"))
 
 ```
 
-### (Optional) Department of Finance - E-6 Population Estimates and Components of Change by County
+### Department of Finance - E-6 Population Estimates and Components of Change by County
 
 ```{r}
 

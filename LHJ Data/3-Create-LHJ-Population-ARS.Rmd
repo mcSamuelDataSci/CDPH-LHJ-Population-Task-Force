@@ -1,6 +1,6 @@
 ---
 title: "Create LHJ Sex-Age-Race/Ethnicity Population Data"
-author: "Jaspreet Kang"
+author: "CDPH/LHJ Population Task Force"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
@@ -18,7 +18,9 @@ This RMarkdown file creates two datasets with age-race/ethnicity-sex population 
 -   Alameda Health Department
 -   Los Angeles Health Department
 
-The first dataset contains January 1st estimates while the second dataset contains adjusted July 1st estimates.
+The first dataset contains estimates from 2000-2023, and is recommended to use for trends.
+
+The second dataset contains estimates from 2020-2023, and is recommended to use when reporting data on recent years only.
 
 ## Population Data Required
 
@@ -36,23 +38,21 @@ Outputs from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-Current-Raw-Da
 
     1.  Processed Sex-Age-Race/Ethnicity population estimates from 2000-2023
 
-(Optional) One output is used from 2-Create-LHJ-Population-Total.Rmd
+4.  intermediatePopData/lhj-population-total.RDS
 
-1.  intermediatePopData/lhj-population-total.RDS
-
-    1.  Total July population estimates
+    1.  Total July LHJ population estimates
 
 Final outputs are saved as csv and RDS files in finalPopData/:
 
-1.  lhj-population-ars
-2.  lhj-population-ars-adjJuly
+1.  lhj-pop-ars-2000-cy
+2.  lhj-pop-ars-2020-cy
+
+Note: 'cy' means 'current year' which is 2023.
 
 # Setup
 
-Note: Set the object **adjust** below to TRUE if final LHJ ARS data should be adjusted from January estimates to July estimates; Otherwise set **adjust** to FALSE
-
 ```{r}
-adjust <- TRUE
+
 
 # Disable scientific notation
 options(scipen=999)
@@ -88,62 +88,53 @@ censusCounty_current <- readRDS(paste0(inputDir, "census-county-ars-current.RDS"
 censusCounty <- bind_rows(censusCounty_historical, censusCounty_current)
 
 # DOF P3 data
-p3_historical <- readRDS(paste0(inputDir, "dof-p3-processed-historical.RDS"))
+p3_historical <- readRDS(paste0(inputDir, "dof-p3-processed-historical.RDS")) %>% mutate(source = "old dof")
 p3_current <- readRDS(paste0(inputDir, "dof-p3-processed-current.RDS"))
 p3 <- bind_rows(p3_historical, p3_current)
 
-# July 1 city, HD, and county totals - for optional adjustment
-if (adjust) {
-  lhjTotal <- readRDS(paste0(inputDir, "lhj-population-total.RDS"))
-}
+# July 1 city, HD, and county totals - for adjustment
+lhjTotal <- readRDS(paste0(inputDir, "lhj-population-total.RDS"))
 
 
 
 ```
 
-## (Optional) Perform Adjustment
+## Perform Adjustment
 
-If the **adjust** object above is set to TRUE, then adjust DOF P3 Jan 1st sex-age-race/ethnicity population estimates to July 1st estimates.
+Adjust **DOF-P3** county sex-age-race/ethnicity population estimates to the "better" county July 1st estimates (in the "lhj-population-total" file). Note that the county populations in "lhj-population-total" are identical to the county populations in **DOF-E6**
 
 Adjustment formula:
 
--   (DOF P3 Jan 1st County ARS Strata Population) / (DOF P3 Jan 1st Total County Population) \* (DOF E6 July 1st Total County Population)
+-   (DOF-P3 County ARS Strata Population) / (DOF-P3 Total County Population) \* (DOF-E6 July 1st Total County Population)
 
-Note: The total county population estimates in DOF P3 should already match the latest July county estimates in DOF E6. This is true for 2000-2009 & 2020-2023. However for 2010-2019, the total county population estimates are slightly different due to the several revisions DOF made to their P3 Vintage 2020 (pre Decennial 2020) file.
+Note: The total county population estimates in **DOF-P3** already match the July county estimates in **DOF-E6** for 2000-2009.
 
 ```{r}
 
-if (adjust) {
-  countyARS <- p3 %>% 
-    rename(popJan = population)%>% 
-    group_by(county, year)%>% 
-    mutate(county_population = sum(popJan)) %>% 
+countyARS <- p3 %>% 
+    rename(popP3 = population)%>% 
+    group_by(county, year, source)%>% 
+    mutate(county_population = sum(popP3)) %>% 
     ungroup() %>% 
-    mutate(ratioStrata = popJan / county_population) %>% 
+    mutate(ratioStrata = popP3 / county_population) %>% 
     left_join(rename(lhjTotal, popJuly = population), by = c("county" = "county_lhj", "year")) %>% 
     mutate(population = ratioStrata * popJuly) %>% 
-    select(county_lhj = county, year, sex, raceEth, age, population)
-} else {
-  countyARS <- p3 %>% 
-    rename(county_lhj = county)
-}
+    select(county_lhj = county, year, sex, raceEth, age, source, population)
   
 
 ```
 
 ## Redistribute "Other" Race
 
-Redistribute 'Other' Race in Census City and County Data
+Redistribute 'Other' Race (Non-Hispanic) in Census City and County Data
 
 Process:
 
 1.  Within each year-geography-sex-age strata:
 
-    1.  Calculate the total population
+    1.  Calculate the total (Non-Hispanic) population excluding "Other"
 
-        1.  popTotal = popAIAN + popAsian + popBlack + popLatino + popNHPI + popMultiRace + popWhite
-
-            1.  Or simply: popTotal = popTotal - popOther
+        1.  popTotal = popAIAN + popAsian + popBlack + popNHPI + popMultiRace + popWhite
 
     2.  Calculate each race/ethnicity-specific population proportion
 
@@ -175,8 +166,14 @@ cityOther <- censusCity %>%
   rename(raceOther = population) %>% 
   select(-raceEth)
 
+cityLatino <- censusCity %>% 
+  filter(raceEth == "Latino")
+
+cityTotal <- censusCity %>% 
+  filter(raceEth == "Total")
+
 cityRace <- censusCity %>% 
-  filter(raceEth != "Other") %>% 
+  filter(!raceEth %in% c("Other", "Latino", "Total")) %>% 
   group_by(year, GEOID, NAME, sex, age) %>% 
   mutate(raceTotal = sum(population)) %>% 
   ungroup() %>% 
@@ -186,7 +183,9 @@ cityRace <- censusCity %>%
 
 censusCity <- cityRace %>% 
   select(year, GEOID, NAME, sex, age, raceEth, population = populationNew) %>% 
-  mutate(population = ifelse(is.nan(population), 0, population))
+  mutate(population = ifelse(is.nan(population), 0, population)) %>% 
+  bind_rows(cityLatino)
+
 
 
 countyOther <- censusCounty %>% 
@@ -194,8 +193,14 @@ countyOther <- censusCounty %>%
   rename(raceOther = population) %>% 
   select(-raceEth)
 
+countyLatino <- censusCounty %>% 
+  filter(raceEth == "Latino")
+
+countyTotal <- censusCounty %>% 
+  filter(raceEth == "Total")
+
 countyRace <- censusCounty %>% 
-  filter(raceEth != "Other") %>% 
+  filter(!raceEth %in% c("Other", "Latino", "Total")) %>% 
   group_by(year, GEOID, NAME, sex, age) %>% 
   mutate(raceTotal = sum(population)) %>% 
   ungroup() %>% 
@@ -205,7 +210,24 @@ countyRace <- censusCounty %>%
 
 censusCounty <- countyRace %>% 
   select(year, GEOID, NAME, sex, age, raceEth, population = populationNew) %>% 
-  mutate(population = ifelse(is.nan(population), 0, population))
+  mutate(population = ifelse(is.nan(population), 0, population)) %>% 
+  bind_rows(countyLatino)
+
+
+# Check Totals match:
+checkCounty <- censusCounty %>% 
+  filter(sex == "Total", age == "Total") %>% 
+  group_by(year, GEOID, NAME) %>% 
+  summarise(checkPop = sum(population)) %>% 
+  full_join(countyTotal) %>% 
+  mutate(diff = checkPop - population)
+
+checkCity <- censusCity %>% 
+  filter(sex == "Total", age == "Total") %>% 
+  group_by(year, GEOID, NAME) %>% 
+  summarise(checkPop = sum(population)) %>% 
+  full_join(cityTotal) %>% 
+  mutate(diff = checkPop - population)
 
 ```
 
@@ -245,7 +267,7 @@ censusCityCountyARS <- censusCityARS %>%
 
 ## Calculate city-level sex-age-race/ethnicity population
 
-Multiply the Census Decennial sex-age-race/ethnicity strata's city:county proportion to the corresponding DOF P3 county-level sex-age-race/ethnicity strata's population estimate (either July estimate if adjustment was performed; Otherwise the original January estimate)
+Multiply the Census Decennial sex-age-race/ethnicity strata's city:county proportion to the corresponding **DOF-P3** (adjusted to DOF-E6) county-level sex-age-race/ethnicity strata's population estimate
 
 Note: Census Decennial data only has data for 2000, 2010, and 2020. Therefore:
 
@@ -255,27 +277,62 @@ Note: Census Decennial data only has data for 2000, 2010, and 2020. Therefore:
 
 ```{r}
 
-joinCityCounty <- function(myYear) {
+joinCityCounty <- function(myYear, mySource) {
   myYears <- myYear:(myYear+9)
   
   tCity <- censusCityCountyARS %>% filter(year == myYear) %>% select(-year)
-  tCounty <- countyARS %>% filter(year %in% myYears)
+  
+  if (mySource == "old dof") {
+    tCounty <- countyARS %>% filter(year %in% myYears, source == mySource)
+  } else {
+    tCounty <- countyARS %>% filter(year %in% myYears, source == mySource)
+  }
+  
+  
   tCity %>% 
     left_join(tCounty, by = c("county" = "county_lhj", "sex", "age", "raceEth"), relationship = "many-to-many") 
 }
 
-cityARS_final <- bind_rows(
-  joinCityCounty(2000),
-  joinCityCounty(2010),
-  joinCityCounty(2020)
+# Trends data: Use pre-2020 P3 
+cityARS_trends_final <- bind_rows(
+  joinCityCounty(2000, "old dof"),
+  joinCityCounty(2010, "old dof"),
+  joinCityCounty(2020, "old dof")
 ) %>% 
+  mutate(population = cityCountyProp * population)%>%
+  select(county_lhj = NAME, year, sex, age, raceEth, source, population)
+
+# Recent data: Use post-2020 P3
+cityARS_recent_final <- joinCityCounty(2020, "new dof") %>% 
   mutate(population = cityCountyProp * population) %>%
-  select(county_lhj = NAME, year, sex, age, raceEth, population)
+  select(county_lhj = NAME, year, sex, age, raceEth, source, population)
+
+cityARS_final <- bind_rows(cityARS_trends_final, cityARS_recent_final)
+
+# Adjust to DOF city
+cityARS_final_adj <- cityARS_final %>% 
+  group_by(county_lhj, year, source) %>% 
+  mutate(cityPopCalc = sum(population)) %>% 
+  ungroup() %>% 
+  left_join(rename(lhjTotal, cityPopDOF = population)) %>% 
+  mutate(popAdj = (cityPopDOF / cityPopCalc) * population) %>% 
+  select(county_lhj, year, sex, age, raceEth, source, population = popAdj)
+  
+
 
 # Data Quality checks
 if (FALSE) {
-  table(cityARS_final$county_lhj, cityARS_final$year, useNA = "ifany")
-length(unique(cityARS_final$sex)) * length(unique(cityARS_final$age)) * length(unique(cityARS_final$raceEth))
+  
+  # Check if LHJ totals match
+  checkTotals <- cityARS_final_adj %>% 
+    group_by(county_lhj, year, source) %>% 
+    summarise(cityPopCalc = sum(population)) %>%
+    ungroup() %>% 
+    left_join(lhjTotal) %>% 
+    mutate(diff = cityPopCalc - population)
+  
+table(cityARS_final_adj$county_lhj, cityARS_final_adj$year, useNA = "ifany")
+length(unique(cityARS_final_adj$sex)) * length(unique(cityARS_final_adj$age)) * length(unique(cityARS_final_adj$raceEth))
 }
 
 
@@ -289,19 +346,22 @@ Calculate sex-age-race/ethnicity estimates at the health department level:
 
 -   Los Angeles HD ARS Population = (Los Angeles County ARS Population) - (Long Beach ARS Population + Pasadena ARS Population)
 
+Note: Negative population estimates are calculated for around 34 sex-age-race-health department stratas. These all occur in NH/PI, Multi-Race, or AI/AN 95+ year olds whose populations are very small. These negative values are set to 0.
+
 ```{r}
 
 # Health Department estimates ----------------------
-hdARS <- cityARS_final %>% 
+hdARS <- cityARS_final_adj %>% 
   mutate(county_lhj = ifelse(county_lhj == "Berkeley", "Berkeley", "Pasadena/Long Beach"))%>% 
-  group_by(city = county_lhj, year, sex, age, raceEth) %>% 
+  group_by(city = county_lhj, year, sex, age, raceEth, source) %>% 
   summarise(city_population = sum(population))%>% 
   ungroup() %>% 
   mutate(county_lhj = ifelse(city == "Berkeley", "Alameda", "Los Angeles")) %>% 
   left_join(rename(countyARS, county_population = population))%>% 
-  mutate(population = county_population - city_population,
+  mutate(city_population = ifelse(city_population > county_population, county_population, city_population),
+         population = county_population - city_population,
          county_lhj = ifelse(city == "Berkeley", "Alameda HD", "Los Angeles HD"))%>% 
-  select(county_lhj, year, sex, age, raceEth, population)
+  select(county_lhj, year, sex, age, raceEth, source, population)
 
 
 ```
@@ -313,27 +373,62 @@ Combine city, health department, and county level data; Save data
 ```{r}
 
 # Append and save --------------------------------
-lhjARS <- bind_rows(countyARS, cityARS_final, hdARS) %>% 
-  select(county_lhj, year, sex, age, raceEth, population) %>% 
-  arrange(county_lhj, year, sex, age, raceEth)
+lhjARS <- bind_rows(countyARS, cityARS_final_adj, hdARS) %>% 
+  select(county_lhj, year, sex, age, raceEth, source, population) %>% 
+  mutate(age = ifelse(age == "100+", "100", age), 
+         age = as.numeric(age)) %>% 
+  arrange(county_lhj, year, sex, age, raceEth) %>% 
+  rename(race_eth = raceEth)
 
-lhjARS_csv <- lhjARS %>% # Temporary: 2000- csv too large to push to github
-  filter(year >= 2010)
+# lhjARS_csv <- lhjARS %>% # Temporary: 2000- csv too large to push to github
+#   filter(year >= 2010)
 
 # Checks -----------------------------------------
 if (FALSE) {
   colSums(is.na(lhjARS))
 }
 
+# Separate
+lhjARS_trends <- lhjARS %>% 
+  filter(source == "old dof") %>% 
+  select(-source)
+
+lhjARS_recent <- lhjARS %>% 
+  filter(source == "new dof") %>% 
+  select(-source)
+
+# Check
+table(lhjARS_trends$year, useNA = "ifany")
+table(lhjARS_recent$year, useNA = "ifany")
+
+check <- lhjARS_trends %>% 
+  filter(county_lhj %in% c("Berkeley", "Alameda", "Alameda HD")) %>% 
+  pivot_wider(names_from = county_lhj, values_from = population) %>% 
+  mutate(newAlameda = Berkeley + `Alameda HD`,
+         diff = abs(Alameda - newAlameda),
+         check = abs(Alameda - newAlameda) < 1e-5)
+
+checkTotals <- lhjARS %>% 
+  filter(!grepl("HD|Berkeley|Pasadena|Beach", county_lhj))%>% 
+  bind_rows(mutate(., race_eth = "Total")) %>% 
+  group_by(year, source, race_eth) %>% 
+  summarise(population = sum(population)) %>% 
+  ungroup()
+
+library(ggplot2)
+ggplot(checkTotals, aes(x = year, y = population, color = source)) +
+  geom_line() +
+  facet_wrap(vars(race_eth), scales = "free_y") +
+  scale_x_continuous(minor_breaks = 2000:2023, breaks = 2000:2023, labels = 2000:2023) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
 # Save data -------------------------------------
 
-if (adjust) {
-  saveRDS(lhjARS, paste0(outputDir, "lhj-population-ars-adjJuly.RDS"))
-  write_csv(lhjARS_csv, paste0(outputDir, "lhj-population-ars-adjJuly.csv"))
-} else {
-  saveRDS(lhjARS, paste0(outputDir, "lhj-population-ars.RDS"))
-  write_csv(lhjARS_csv, paste0(outputDir, "lhj-population-ars.csv"))
-}
+
+saveRDS(lhjARS_trends, paste0(outputDir, "lhj-pop-ars-2000-cy.RDS"))
+write_csv(lhjARS_trends, paste0(outputDir, "lhj-pop-ars-2000-cy.csv"))
+saveRDS(lhjARS_recent, paste0(outputDir, "lhj-pop-ars-2020-cy.RDS"))
+write_csv(lhjARS_recent, paste0(outputDir, "lhj-pop-ars-2020-cy.csv"))
+
 
 ```
