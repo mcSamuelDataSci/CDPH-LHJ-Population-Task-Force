@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 Each of the files in this SOGI directory of the CDPH Population Data
 Task Force GitHub is explained below:
 
