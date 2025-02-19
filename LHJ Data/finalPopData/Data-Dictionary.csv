@@ -1,0 +1,7 @@
+Column,Description
+county_lhj,"58 California Counties (Alameda, Alpine, etc), 3 city jurisdictions (Berkeley, Long Beach, Pasadena), Alameda HD, and Los Angeles HD"
+year,Annual; Ranges from 2000 to 2023
+sex,Sex at birth
+age,Single years of age; Ages 100 and over are aggregated into '100'
+race_eth,Race/Ethnicity; Single races are defined as race alone and not Hispanic; Multi-Race is two or more races and not-Hispanic; Note: AI/AN = American Indian/Alaskan Native; NH/PI = Native Hawaiian/Pacific Islander
+population,"Population estimates; data file 'lhj-pop-ars-2000-cy' contains population estimates from 2000-2023, and is recommended to use for trends; 'lhj-pop-ars-2020-cy' contains population estimates from 2020-2023, and is recommended to use for displaying recent years of data."
