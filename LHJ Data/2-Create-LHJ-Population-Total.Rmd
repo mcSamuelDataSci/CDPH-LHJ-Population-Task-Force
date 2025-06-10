@@ -23,7 +23,7 @@ Four outputs are used from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-
 
 2.  *intermediatePopData/dof-e4-processed-current.RDS*
 
-    1.  Contains city to county proportions (using January 1st estimates) from 2011-2023.
+    1.  Contains city to county proportions (using January 1st estimates) from 2011-2025.
 
 3.  *intermediatePopData/dof-e6-processed-historical.RDS*
 
@@ -31,7 +31,7 @@ Four outputs are used from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-
 
 4.  *intermediatePopData/dof-e6-processed-current.RDS*
 
-    1.  Processed DOF July 1st estimates for counties from 2010-2023
+    1.  Processed DOF July 1st estimates for counties from 2010-2024
 
 ## Method
 
@@ -132,6 +132,11 @@ lhjJuly_final <- bind_rows(
 # Data Quality checks
 if (FALSE) {
   colSums(is.na(lhjJuly_final)) # Should return 0s, meaning there are no missing values
+  # Berkeley to Alameda HD = Alameda County
+  al <- lhjJuly_final %>% 
+    filter(county_lhj %in% c("Berkeley", "Alameda HD", "Alameda")) %>% 
+    pivot_wider(names_from = county_lhj, values_from = population) %>% 
+    mutate(eq = Berkeley + `Alameda HD` == Alameda)
 }
 
 

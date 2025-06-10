@@ -19,43 +19,45 @@ Note: This Rmarkdown is largely the same as *1a-Process-Historical-Raw-Data.Rmd*
 
 The population data files extracted and processed include:
 
-1.  Department of Finance (DOF) P3 Complete State and County Projections Dataset
+1.  Department of Finance (DOF) Annual Intercensal Population Estimates by Race/Ethnicity with Age and Gender Detail
 
-    1.  Files processed:
+    1.  Location: *P3/intercensals_2010_2020.csv*
 
-        1.  *P3/P3_Complete_2010-2060.csv*
+    2.  Released 2025.01.29
 
-            1.  Vintage 2020 (released 2021.7.14)
+    3.  Downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/annual-intercensal-population-estimates-by-race-ethnicity-with-age-and-gender-detail-2010-2020/)
 
-            2.  File not available for download on DOF's website.
+    4.  2010-2019 population estimates are used.
 
-            3.  2010-2023 population estimates are used.
+    5.  Contains sex by age by race/ethnicity population estimates at the county-level.
 
-        2.  *P3/P3_Complete_2020-2060.csv*
+2.  Department of Finance (DOF) P3 Complete State and County Projections Dataset
 
-            1.  Vintage 2023 (released 2024.3.8)
+    1.  Location: *P3/P3_Complete.csv*
 
-            2.  Downloaded from [here](https://dof.ca.gov/forecasting/demographics/projections/)
+    2.  Vintage 2025 (released 2025.04.25)
 
-            3.  2020-2023 population estimates are used.
+    3.  Downloaded from [here](https://dof.ca.gov/forecasting/demographics/projections/)
 
-        3.  Note: Both files contain sex by age by race/ethnicity population estimates at the county-level.
+    4.  2020-2024 population estimates are used.
 
-2.  2020 Census Decennial for county- and city-level Sex-Age-Race/Ethnicity population
+    5.  Contains sex by age by race/ethnicity population estimates at the county-level.
+
+3.  2020 Census Decennial for county- and city-level Sex-Age-Race/Ethnicity population
 
     1.  Extracted using R's [tidycensus](https://github.com/walkerke/tidycensus) package. This method requires a Census API key, which can be obtained [here](https://api.census.gov/data/key_signup.html). Estimates are pulled from the 2020 Decennial.
 
-3.  Department of Finance - E-4 Population Estimates for Cities, Counties, and the State
+4.  Department of Finance - E-4 Population Estimates for Cities, Counties, and the State
 
     1.  Excel files of these data were downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/), and are stored in *E4/Raw/*. The raw data were then manually formatted for easier processing and stored into *E4/Clean/*.
 
-    2.  Contains January 1st county- and city-level total estimates from 2011-2023
+    2.  Contains January 1st county- and city-level total estimates from 2011-2025
 
-4.  Department of Finance - E-6 Population Estimates and Components of Change by County
+5.  Department of Finance - E-6 Population Estimates and Components of Change by County
 
     1.  Excel files of these data were downloaded from [here](https://dof.ca.gov/forecasting/demographics/estimates/), and are stored in *E6/Raw/*. The raw data were then manually formatted for easier processing stored into *E6/Clean/.*
 
-    2.  Contains July 1st county-level total estimates from 2010-2023
+    2.  Contains July 1st county-level total estimates from 2010-2024
 
 Note: The data structure and formatting between each of DOF's raw E-4 and E-6 files are largely inconsistent. Therefore, these files were first manually converted to a standard format.
 
@@ -95,8 +97,8 @@ library(tidycensus) # For interacting with Census API
 ## Global constants ---------------------------------------------
 
 # Set current year
-currentYear <- 2023 # July E6 - most recent year available
-currentYear_Jan <- 2024 # Jan E4 - most recent year available
+currentYear <- 2024 # Jan E6 - most recent year available
+currentYear_Jan <- 2025 # Jan E4 - most recent year available
 
 # City LHJs
 cities <- c("Berkeley", "Long Beach", "Pasadena")
@@ -125,36 +127,65 @@ raceLink <- read_xlsx("Standards/raceLink.xlsx") %>%
 
 # Read in and process data =======
 
-# Previous DOF P3 ---------------------
-# Vintage 2020 (2021.7.14) version
-p3_10_60 <- read_csv("P3/P3_Complete_2010-2060.csv") %>%
+if (F) {
+  # Previous DOF P3 ---------------------
+  # Vintage 2020 (2021.7.14) version
+  p3_10_60 <- read_csv("P3/P3_Complete_2010-2060.csv") %>%
+    left_join(countyLink, by = "fips") %>% 
+    mutate(sex = str_to_title(sex)) %>% 
+    select(county, year, sex, race7, age = agerc, population = perwt)
+  
+  # 2010-currentYear
+  p3_10_ <- p3_10_60 %>% 
+    filter(year %in% 2010:currentYear) %>% 
+    mutate(source = "old dof")
+  
+  
+  # 2020 - Current --------------
+  # Vintage 2023 (2024.3.8) version
+  p3_20_ <- read_csv("P3/P3_Complete_2020-2060.csv") %>% 
+    filter(year %in% 2020:currentYear) %>% 
+    left_join(countyLink, by = "fips") %>% 
+    mutate(sex = str_to_title(sex)) %>% 
+    select(county, year, sex, race7, age = agerc, population = perwt) %>% 
+    mutate(source = "new dof")
+
+  # Bind data ===================
+  p3_final <- bind_rows(p3_10_, p3_20_) %>% 
+    left_join(raceLink) %>% 
+    select(-race7) %>% 
+    mutate(age = case_when(age >= 100 ~ "100+", 
+                           TRUE ~ as.character(age))) %>% 
+    group_by(county, year, sex, age, raceEth, source) %>% 
+    summarise(population = sum(population)) %>% 
+    ungroup()
+  
+}
+
+# DOF Intercensal 2010-2019
+intercensal_10_19 <- read_csv("P3/intercensals_2010_2020.csv") %>% 
+  filter(month == 7) %>% 
   left_join(countyLink, by = "fips") %>% 
+  left_join(raceLink) %>% 
   mutate(sex = str_to_title(sex)) %>% 
-  select(county, year, sex, race7, age = agerc, population = perwt)
+  select(county, year, sex, raceEth, age = agerc, population = perwt)
 
-# 2010-currentYear
-p3_10_ <- p3_10_60 %>% 
-  filter(year %in% 2010:currentYear) %>% 
-  mutate(source = "old dof")
-
-# 2020 - Current --------------
-# Vintage 2023 (2024.3.8) version
-p3_20_ <- read_csv("P3/P3_Complete_2020-2060.csv") %>% 
+# DOF P3 Vintage 2025 (2025.04.25 version)
+p3_20_ <- read_csv("P3/P3_Complete.csv") %>% 
   filter(year %in% 2020:currentYear) %>% 
   left_join(countyLink, by = "fips") %>% 
+  left_join(raceLink) %>%
   mutate(sex = str_to_title(sex)) %>% 
-  select(county, year, sex, race7, age = agerc, population = perwt) %>% 
-  mutate(source = "new dof")
+  select(county, year, sex, raceEth, age = agerc, population = perwt)
 
 # Bind data ===================
-p3_final <- bind_rows(p3_10_, p3_20_) %>% 
-  left_join(raceLink) %>% 
-  select(-race7) %>% 
+p3_final <- bind_rows(intercensal_10_19, p3_20_) %>% 
   mutate(age = case_when(age >= 100 ~ "100+", 
                          TRUE ~ as.character(age))) %>% 
-  group_by(county, year, sex, age, raceEth, source) %>% 
+  group_by(county, year, sex, age, raceEth) %>% 
   summarise(population = sum(population)) %>% 
   ungroup()
+
 
 # Save data =======
 saveRDS(p3_final, paste0(outputDir, "dof-p3-processed-current.RDS"))
@@ -342,6 +373,15 @@ process_e6 <- function(years) {
 e6_final <- bind_rows(process_e6(2010:2019),
                       process_e6(2020:currentYear)
                       )
+
+if (F) {
+  e6_recent <- e6_final %>% 
+    filter(year == currentYear-1) %>% 
+    mutate(year = currentYear)
+  
+  e6_final <- e6_final %>% 
+    bind_rows(e6_recent)
+}
 
 # Save data --------------------------------------
 saveRDS(e6_final, paste0(outputDir, "dof-e6-processed-current.RDS"))

@@ -11,7 +11,7 @@
 
 <meta name="author" content="Jaspreet Kang" />
 
-<meta name="date" content="2024-08-12" />
+<meta name="date" content="2025-06-10" />
 
 <title>Create Total LHJ Population Data</title>
 
@@ -352,7 +352,7 @@ display: none;
 
 <h1 class="title toc-ignore">Create Total LHJ Population Data</h1>
 <h4 class="author">Jaspreet Kang</h4>
-<h4 class="date">August 12, 2024</h4>
+<h4 class="date">June 10, 2025</h4>
 
 </div>
 
@@ -377,7 +377,7 @@ from 1970-2010.</li>
 <li><p><em>intermediatePopData/dof-e4-processed-current.RDS</em></p>
 <ol style="list-style-type: decimal">
 <li>Contains city to county proportions (using January 1st estimates)
-from 2011-2023.</li>
+from 2011-2025.</li>
 </ol></li>
 <li><p><em>intermediatePopData/dof-e6-processed-historical.RDS</em></p>
 <ol style="list-style-type: decimal">
@@ -385,7 +385,7 @@ from 2011-2023.</li>
 </ol></li>
 <li><p><em>intermediatePopData/dof-e6-processed-current.RDS</em></p>
 <ol style="list-style-type: decimal">
-<li>Processed DOF July 1st estimates for counties from 2010-2023</li>
+<li>Processed DOF July 1st estimates for counties from 2010-2024</li>
 </ol></li>
 </ol>
 </div>
@@ -485,6 +485,11 @@ lhjJuly_final &lt;- bind_rows(
 # Data Quality checks
 if (FALSE) {
   colSums(is.na(lhjJuly_final)) # Should return 0s, meaning there are no missing values
+  # Berkeley to Alameda HD = Alameda County
+  al &lt;- lhjJuly_final %&gt;% 
+    filter(county_lhj %in% c(&quot;Berkeley&quot;, &quot;Alameda HD&quot;, &quot;Alameda&quot;)) %&gt;% 
+    pivot_wider(names_from = county_lhj, values_from = population) %&gt;% 
+    mutate(eq = Berkeley + `Alameda HD` == Alameda)
 }
 
 
