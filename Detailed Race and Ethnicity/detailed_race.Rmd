@@ -348,112 +348,231 @@ The interpretation of detailed race and ethnicity population data, detailed nume
 
 ### R code to extract data from ACS PUMS
 
-Note: A Census API key is required, which can be obtained [here](https://api.census.gov/data/key_signup.html).
+Due to the long download time via tidycensus, data were instead downloaded manually from ACS PUMS. 
 
-```{r eval = FALSE, echo = FALSE}
-.census_api_key <- read_file("data in/census_api_key.txt")
+```{r, eval = F, echo = T}
 
-census_api_key(.census_api_key)
-```
+# Load packages =========================================================================
 
-```{r eval = FALSE, echo = TRUE}
+# R version 4.4.0
 
-# Load in census api key
-# census_api_key("your_census_api_key_here")  # link to get an api key: https://api.census.gov/data/key_signup.html 
+library(dplyr)
+library(readxl) 
+library(readr) 
+library(tidyr) 
+
+# Define global constants ================================================================
+stateDataYear <- 2022 # ACS 2022 5Y Survey
+
+ageGroups <- c('0 - 1', '1 - 4', '5 - 14', '15 - 24', '25 - 34', 
+               '35 - 44', '45 - 54', '55 - 64', '65 - 74', '75 - 84', '85+') 
+
+# Read in info files ==================================================================
+pumsCol <- paste0("pums_raceName_", stateDataYear)
+
+detailedRaceLink <- read_excel("detailedRaceLinkShort.xlsx", sheet = "detailedRaceLink") |>
+  select(detailedRace = {{ pumsCol}}, raceGroup) |>
+  filter(!is.na(detailedRace))
 
 
-# Pull raw pums data - detailed RE by age
-detailed_re_pums <- get_pums(
-  state = "CA", 
-  variables = c("RAC1P", "RAC2P", "HISP", "AGEP"),
-  survey = "acs5",
-  year = 2019, 
-  recode = TRUE,
-  rep_weights = "person"
-)
+# Read in ACS PUMS data ===========================================================
 
-# Detailed RE
-detailed_re_pums <- get_pums(
-  state = "CA", 
-  variables = c("RAC1P", "RAC2P", "HISP"),
-  survey = "acs5",
-  year = 2019, 
-  recode = TRUE,
-  rep_weights = "person"
-)
-
-# Save data
-saveRDS(detailed_re_pums, "data in\rawPUMS_detailedRE_age.RDS")
+rawPop_race_age <- read_csv(paste0('data in/raw/Detailed_Race_by_Age_Pop_PUMS', stateDataYear, '.csv'), skip = 4)
 
 ```
+
+<!-- Note: A Census API key is required, which can be obtained [here](https://api.census.gov/data/key_signup.html). -->
+
+<!-- ```{r eval = FALSE, echo = FALSE} -->
+<!-- .census_api_key <- read_file("data in/census_api_key.txt") -->
+
+<!-- census_api_key(.census_api_key) -->
+<!-- ``` -->
+
+<!-- ```{r eval = FALSE, echo = FALSE} -->
+
+<!-- # Load in census api key -->
+<!-- # census_api_key("your_census_api_key_here")  # link to get an api key: https://api.census.gov/data/key_signup.html  -->
+
+
+<!-- # Pull raw pums data - detailed RE by age -->
+<!-- detailed_re_pums <- get_pums( -->
+<!--   state = "CA",  -->
+<!--   variables = c("RAC1P", "RAC2P", "HISP", "AGEP"), -->
+<!--   survey = "acs5", -->
+<!--   year = 2019,  -->
+<!--   recode = TRUE, -->
+<!--   rep_weights = "person" -->
+<!-- ) -->
+
+<!-- # Detailed RE -->
+<!-- detailed_re_pums <- get_pums( -->
+<!--   state = "CA",  -->
+<!--   variables = c("RAC1P", "RAC2P", "HISP"), -->
+<!--   survey = "acs5", -->
+<!--   year = 2019,  -->
+<!--   recode = TRUE, -->
+<!--   rep_weights = "person" -->
+<!-- ) -->
+
+<!-- # Save data -->
+<!-- saveRDS(detailed_re_pums, "data in\rawPUMS_detailedRE_age.RDS") -->
+
+<!-- ``` -->
 
 <br>
 
 ### R code to manipulate data
 
-Note: The standard package for calculating estimates from complex survey objects is the survey package. The srvyr package is an alternative package which wraps some survey functions to allow for analyzing surveys using dplyr-style syntax. tidycensus provides a function, to_survey(), that converts data frames returned by get_pums() into either a survey or srvyr object.
+```{r}
 
-In order to generate reliable standard errors, the Census Bureau provides a set of replicate weights for each observation in the PUMS dataset. These replicate weights are used to simulate multiple samples from the single PUMS sample and can be used to calculate more precise standard errors. PUMS data contains both person- and housing-unit-level replicate weights.
+# Clean data frame =================================================================================
+pop_race_age <- rawPop_race_age[c(-1, -2), ] |>
+  select(-Total) |>
+  rename(detailedRace = 1) |>
+  mutate(detailedRace = sub(".*-> Total -> Total California", "", detailedRace)) |>
+  mutate(detailedRace = sub(".* -> Total ", "", detailedRace)) |>
+  mutate(ageGroup = ifelse(!(detailedRace %in% ageGroups), 
+                           "Total", detailedRace)) 
 
-Replicate weights at the person-level were included in the PUMS data extraction above by setting the **rep_weights** argument in **get_pums()** to "person".
 
-```{r eval = FALSE, echo = TRUE}
-# Read raw pums data
-detailed_re_pums <- readRDS("data in/rawPUMS_detailedRE_age.RDS")
+# Create Race, Non-Hispanic Population Dataset ========================================================
 
-# Process data
-detailed_re_pums_survey <- to_survey(detailed_re_pums)
+nh_pop <- pop_race_age |>
+  select(detailedRace, ageGroup, population = "Not Spanish/Hispanic/Latino")
 
-# Detailed RE by Age -----------------------------------------------------
-detailed_re_age <- detailed_re_pums_survey %>%
-  mutate(ageGroup = cut(AGEP, breaks = c(0, 1, seq(5, 85, by = 10), 199), include.lowest = T, right = F, 
-                        labels = c("0", "1 - 4", "5 - 14", "15 - 24", "25 - 34", "35 - 44", "45 - 54", "55 - 64", "65 - 74", "75 - 84", "85+")),
-         detailedRE = ifelse(HISP_label == "Not Spanish/Hispanic/Latino", as.character(RAC2P_label), as.character(HISP_label)), 
-         reGroup = case_when(
-           HISP_label != "Not Spanish/Hispanic/Latino" ~ "Latino", 
-           RAC1P_label %in% c("Alaska Native alone", 
-                              "American Indian alone", 
-                              "American Indian and Alaska Native tribes specified; or American Indian or Alaska Native, not specified and no other races") ~ "American Indian/Alaska Native", 
-           TRUE ~ as.character(RAC1P_label)
-         )
-  )
+nh_race_groups <- detailedRaceLink |>
+  filter(!raceGroup %in% c("Latino", "Total")) |>
+  dplyr::distinct(detailedRace) |>
+  dplyr::pull(detailedRace)
 
-detailed_re_age_survey <- detailed_re_age %>% 
-  survey_count(ageGroup, detailedRE, reGroup, name = "population", vartype = "ci")
 
-# Verify data - Check total population
-sum(detailed_re_age_survey$population)
-# Matches total CA population estimate in PUMS (https://www.census.gov/programs-surveys/acs/microdata/documentation.2019.html#list-tab-DO3IVWNQPH4UCXIU03)
+## Check ======================================================
 
-# Detailed RE ----------------------------------------------------
-detailed_re_survey <- detailed_re_age %>% 
-  survey_count(detailedRE, reGroup, name = "population", vartype = "ci")
+# Are Detailed Race/Ethnicity names are identical between the PUMS data and detailedRaceLink?
+# This can happen where they are not identical. For example, detailed RE categories were removed or renamed in ACS 2022 compared to 2019
+diff1 <- setdiff(nh_pop$detailedRace, nh_race_groups)
+diff1 <- diff1[!diff1 %in% ageGroups]
+diff2 <- setdiff(nh_race_groups, nh_pop$detailedRace)
 
-# Verify data - Check total population
-sum(detailed_re_survey$population)
-# Matches total CA population estimate in PUMS (https://www.census.gov/programs-surveys/acs/microdata/documentation.2019.html#list-tab-DO3IVWNQPH4UCXIU03)
+if (length(diff1) + length(diff2) > 0) {
+  stop("Detailed Race/Ethnicity names are not identical between the PUMS data and detailedRaceLink. Investigate.")
+} 
+
+## ===============================================================
+
+n_agegroups <- length(ageGroups)
+
+nh_pop_list <- lapply(nh_race_groups, function(x) {
   
+  race_index <- which(nh_pop$detailedRace == x)
+  age_index <- race_index + n_agegroups
+  
+  nh_pop[race_index:age_index, ] |>
+    mutate(detailedRace = x)
+  
+  
+})
 
-# Save processed data
-saveRDS(detailed_re_age_survey, "data in/CA_pop_detailed_RE_age.RDS")
-saveRDS(detailed_re_survey, "data in/CA_pop_detailed_RE.RDS")
+nh_pop_final <- dplyr::bind_rows(nh_pop_list)
 
-write.csv(detailed_re_age_survey, "data out/ca_pop_detailed_RE_age_pums.csv", row.names = FALSE)
-write.csv(detailed_re_survey, "data out/ca_pop_detailed_RE_pums.csv", row.names = FALSE)
+# Create Hispanic Population Dataset ===============================
+
+hisp_pop <- pop_race_age |>
+  select(-detailedRace, -`Not Spanish/Hispanic/Latino`) |>
+  pivot_longer(-ageGroup, values_to = 'population', names_to = 'detailedRace') |>
+  group_by(detailedRace, ageGroup) |>
+  summarise(population = sum(population)) |>
+  dplyr::ungroup()
+
+# Bind Race, NH & Hispanic population datasets ======================
+
+pop_race_age_final <- dplyr::bind_rows(nh_pop_final, hisp_pop) |>
+  dplyr::left_join(detailedRaceLink, by = "detailedRace") %>% 
+  mutate(ageGroup = ifelse(ageGroup == '0 - 1', '0', ageGroup))
+
+# Data Validation Checks =================================
+
+if (F) {
+  colSums(is.na(pop_race_age_final))
+  table(pop_race_age_final$ageGroup, useNA = "ifany")
+  table(pop_race_age_final$detailedRace, useNA = "ifany")
+  table(pop_race_age_final$raceGroup, useNA = "ifany")
+}
+
+# Save Population data ========================================================
+write_csv(pop_race_age_final, 'data out/ca_pop_detailed_RE_age_pums.csv')
+
 ```
+
+<!-- Note: The standard package for calculating estimates from complex survey objects is the survey package. The srvyr package is an alternative package which wraps some survey functions to allow for analyzing surveys using dplyr-style syntax. tidycensus provides a function, to_survey(), that converts data frames returned by get_pums() into either a survey or srvyr object. -->
+
+<!-- In order to generate reliable standard errors, the Census Bureau provides a set of replicate weights for each observation in the PUMS dataset. These replicate weights are used to simulate multiple samples from the single PUMS sample and can be used to calculate more precise standard errors. PUMS data contains both person- and housing-unit-level replicate weights. -->
+
+<!-- Replicate weights at the person-level were included in the PUMS data extraction above by setting the **rep_weights** argument in **get_pums()** to "person". -->
+
+<!-- ```{r eval = FALSE, echo = FALSE} -->
+<!-- # Read raw pums data -->
+<!-- detailed_re_pums <- readRDS("data in/rawPUMS_detailedRE_age.RDS") -->
+
+<!-- # Process data -->
+<!-- detailed_re_pums_survey <- to_survey(detailed_re_pums) -->
+
+<!-- # Detailed RE by Age ----------------------------------------------------- -->
+<!-- detailed_re_age <- detailed_re_pums_survey %>% -->
+<!--   mutate(ageGroup = cut(AGEP, breaks = c(0, 1, seq(5, 85, by = 10), 199), include.lowest = T, right = F,  -->
+<!--                         labels = c("0", "1 - 4", "5 - 14", "15 - 24", "25 - 34", "35 - 44", "45 - 54", "55 - 64", "65 - 74", "75 - 84", "85+")), -->
+<!--          detailedRE = ifelse(HISP_label == "Not Spanish/Hispanic/Latino", as.character(RAC2P_label), as.character(HISP_label)),  -->
+<!--          reGroup = case_when( -->
+<!--            HISP_label != "Not Spanish/Hispanic/Latino" ~ "Latino",  -->
+<!--            RAC1P_label %in% c("Alaska Native alone",  -->
+<!--                               "American Indian alone",  -->
+<!--                               "American Indian and Alaska Native tribes specified; or American Indian or Alaska Native, not specified and no other races") ~ "American Indian/Alaska Native",  -->
+<!--            TRUE ~ as.character(RAC1P_label) -->
+<!--          ) -->
+<!--   ) -->
+
+<!-- detailed_re_age_survey <- detailed_re_age %>%  -->
+<!--   survey_count(ageGroup, detailedRE, reGroup, name = "population", vartype = "ci") -->
+
+<!-- # Verify data - Check total population -->
+<!-- sum(detailed_re_age_survey$population) -->
+<!-- # Matches total CA population estimate in PUMS (https://www.census.gov/programs-surveys/acs/microdata/documentation.2019.html#list-tab-DO3IVWNQPH4UCXIU03) -->
+
+<!-- # Detailed RE ---------------------------------------------------- -->
+<!-- detailed_re_survey <- detailed_re_age %>%  -->
+<!--   survey_count(detailedRE, reGroup, name = "population", vartype = "ci") -->
+
+<!-- # Verify data - Check total population -->
+<!-- sum(detailed_re_survey$population) -->
+<!-- # Matches total CA population estimate in PUMS (https://www.census.gov/programs-surveys/acs/microdata/documentation.2019.html#list-tab-DO3IVWNQPH4UCXIU03) -->
+
+
+<!-- # Save processed data -->
+<!-- saveRDS(detailed_re_age_survey, "data in/CA_pop_detailed_RE_age.RDS") -->
+<!-- saveRDS(detailed_re_survey, "data in/CA_pop_detailed_RE.RDS") -->
+
+<!-- write.csv(detailed_re_age_survey, "data out/ca_pop_detailed_RE_age_pums.csv", row.names = FALSE) -->
+<!-- write.csv(detailed_re_survey, "data out/ca_pop_detailed_RE_pums.csv", row.names = FALSE) -->
+<!-- ``` -->
 
 <br>
 
 ### R code to extract data from American Community Survey (ACS)
 
-The code below pulls 2015-2019 ACS 5-year county-level population estimates for *Asian Alone by selected groups (table B02015)*, *Native Hawaiian and Other Pacific Islander alone by selected groups (table B02016)*, and *Hispanic or Latino origin by specific origin (table B003001)*. A list of the available detailed race and ethnicity groups and their corresponding ACS variable/table IDs can be found in the **detailedRE_acs_link.xlsx** file.
+The code below pulls 2018-2022 ACS 5-year county-level population estimates for *Asian Alone by selected groups (table B02015)*, *Native Hawaiian and Other Pacific Islander alone by selected groups (table B02016)*, and *Hispanic or Latino origin by specific origin (table B003001)*. A list of the available detailed race and ethnicity groups and their corresponding ACS variable/table IDs can be found in the **detailedRE_acs_link.xlsx** file.
 
 These ACS 5-year data pulled below have two key differences from the ACS PUMS data pulled above:
 
 1.  The ACS 5-year detailed race or ethnicity estimates below are at the county level, while the ACS PUMS estimates above are at the state level. The lowest geographical unit these data are available at is census tract level for ACS 5-year, and PUMA for ACS PUMS.
 2.  Unlike ACS PUMS, the ACS 5-year detailed Asian and NH/PI estimates below are not stratified by Hispanic or Latino origin.
 
+Note: A Census API key is required, which can be obtained [here](https://api.census.gov/data/key_signup.html).
+
 ```{r, echo=FALSE}
+
+library(tidycensus)
+
 .census_api_key <- read_file("data in/census_api_key.txt")
 
 census_api_key(.census_api_key)
@@ -464,13 +583,13 @@ census_api_key(.census_api_key)
 # census_api_key("your_census_api_key_here"")
 
 library(readxl)
-acsDetailedAsian <- read_xlsx("data in/detailedRE_ACS_link.xlsx", sheet = "Detailed Asian")
-acsDetailedNHPI <- read_xlsx("data in/detailedRE_ACS_link.xlsx", sheet = "Detailed NHPI")
-acsDetailedLatino <- read_xlsx("data in/detailedRE_ACS_link.xlsx", sheet = "Detailed Latino")
+acsDetailedAsian <- read_xlsx("data in/detailedAsian_ACS_link.xlsx", sheet = "y2022")
+acsDetailedLatino <- read_xlsx("data in/detailedLatino_ACS_link.xlsx", sheet = "y2010-2022")
+acsDetailedNHPI <- read_xlsx("data in/detailedNHPI_ACS_link.xlsx", sheet = "y2022")
 
 
 ourGet <- function(ourVariable = acsDetailedAsian) {
-  get_acs(geography = "county", state = 06, year = 2019, survey = "acs5", moe_level = 90, variables = ourVariable$acsID) %>% 
+  get_acs(geography = "county", state = 06, year = 2022, survey = "acs5", moe_level = 90, variables = ourVariable$acsID) %>% 
     left_join(ourVariable, by = c("variable" = "acsID")) %>% 
     select(GEOID, county = NAME, acsID = variable, raceGroup, detailedRace, population = estimate, moe)
 }
