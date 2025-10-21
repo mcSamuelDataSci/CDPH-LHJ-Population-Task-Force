@@ -170,7 +170,7 @@ intercensal_10_19 <- read_csv("P3/intercensals_2010_2020.csv") %>%
   mutate(sex = str_to_title(sex)) %>% 
   select(county, year, sex, raceEth, age = agerc, population = perwt)
 
-# DOF P3 Vintage 2025 (2025.04.25 version)
+# DOF P3 Vintage 2025 (2025.09.30 version)
 p3_20_ <- read_csv("P3/P3_Complete.csv") %>% 
   filter(year %in% 2020:currentYear) %>% 
   left_join(countyLink, by = "fips") %>% 
