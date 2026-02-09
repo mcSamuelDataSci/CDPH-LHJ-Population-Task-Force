@@ -9,9 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="CDPH/LHJ Population Task Force" />
+<meta name="author" content="CDPH/LHJ Population Data Work Group (PopDaWG)" />
 
-<meta name="date" content="2025-06-10" />
+<meta name="date" content="2026-02-09" />
 
 <title>Create LHJ Sex-Age-Race/Ethnicity Population Data</title>
 
@@ -299,17 +299,23 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "\e259";
+.tabset-dropdown > .nav-tabs > li.active:before {
+content: "";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "\e258";
-font-family: 'Glyphicons Halflings';
+content: "";
 border: none;
+}
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "";
+font-family: 'Glyphicons Halflings';
+display: inline-block;
+padding: 10px;
+border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -352,16 +358,16 @@ display: none;
 
 <h1 class="title toc-ignore">Create LHJ Sex-Age-Race/Ethnicity
 Population Data</h1>
-<h4 class="author">CDPH/LHJ Population Task Force</h4>
-<h4 class="date">June 10, 2025</h4>
+<h4 class="author">CDPH/LHJ Population Data Work Group (PopDaWG)</h4>
+<h4 class="date">February 09, 2026</h4>
 
 </div>
 
 
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>This RMarkdown file creates two datasets with age-race/ethnicity-sex
-population estimates for:</p>
+<p>This RMarkdown file creates a dataset with age-race/ethnicity-sex
+population estimates and projections for:</p>
 <ul>
 <li>All 58 counties</li>
 <li>The 3 city-based jurisdictions: Berkeley, Long Beach, and
@@ -369,44 +375,38 @@ Pasadena</li>
 <li>Alameda Health Department</li>
 <li>Los Angeles Health Department</li>
 </ul>
-<p>The first dataset contains estimates from 2000-2023, and is
-recommended to use for trends.</p>
-<p>The second dataset contains estimates from 2020-2023, and is
-recommended to use when reporting data on recent years only.</p>
 <div id="population-data-required" class="section level2">
 <h2>Population Data Required</h2>
 <p>Outputs from <em>1a-Process-Historical-Raw-Data.Rmd</em> and
 <em>1b-Process-Current-Raw-Data.Rmd</em>:</p>
 <ol style="list-style-type: decimal">
-<li><p>intermediatePopData/census-city-ars-historical.RDS &amp;
-intermediatePopData/census-city-ars-current.RDS</p>
+<li><p>outputs/intermediate/census-city-ars-historical.RDS &amp;
+outputs/intermediate/census-city-ars-current.RDS</p>
 <ol style="list-style-type: decimal">
 <li>City-level Sex-Age-Race/Ethnicity population estimates pulled from
 the 2000, 2010, and 2020 Decennial.</li>
 </ol></li>
-<li><p>intermediatePopData/census-county-ars-historical.RDS &amp;
-intermediatePopData/census-county-ars-current.RDS</p>
+<li><p>outputs/intermediate/census-county-ars-historical.RDS &amp;
+outputs/intermediate/census-county-ars-current.RDS</p>
 <ol style="list-style-type: decimal">
 <li>County-level Sex-Age-Race/Ethnicity population estimates pulled from
 the 2000, 2010, and 2020 Decennial.</li>
 </ol></li>
-<li><p>intermediatePopData/dof-p3-processed-historical.RDS &amp;
-intermediatePopData/dof-p3-processed-current.RDS</p>
+<li><p>outputs/intermediate/dof-p3-processed-historical.RDS &amp;
+outputs/intermediate/dof-p3-processed-current.RDS</p>
 <ol style="list-style-type: decimal">
-<li>Processed Sex-Age-Race/Ethnicity population estimates from
-2000-2024</li>
+<li>Processed Sex-Age-Race/Ethnicity population estimates and
+projections from 2000+</li>
 </ol></li>
-<li><p>intermediatePopData/lhj-population-total.RDS</p>
+<li><p>outputs/intermediate/lhj-population-total.RDS</p>
 <ol style="list-style-type: decimal">
-<li>Total July LHJ population estimates</li>
+<li>Total July LHJ population estimates and projections</li>
 </ol></li>
 </ol>
-<p>Final outputs are saved as csv and RDS files in finalPopData/:</p>
+<p>Final output is saved as csv and RDS file in outputs/final/:</p>
 <ol style="list-style-type: decimal">
-<li>lhj-pop-ars-2000-cy</li>
-<li>lhj-pop-ars-2020-cy</li>
+<li>lhj-pop-ars-2000-2030</li>
 </ol>
-<p>Note: ‘cy’ means ‘current year’ which is 2024.</p>
 </div>
 </div>
 <div id="setup" class="section level1">
@@ -424,8 +424,8 @@ library(tidyr) # Data reshaping
 cities &lt;- c(&quot;Berkeley&quot;, &quot;Long Beach&quot;, &quot;Pasadena&quot;)
 
 # Directories
-inputDir &lt;- &quot;intermediatePopData/&quot;
-outputDir &lt;- &quot;finalPopData/&quot;</code></pre>
+inputDir &lt;- &quot;outputs/intermediate/&quot;
+outputDir &lt;- &quot;outputs/final/&quot;</code></pre>
 </div>
 <div id="data-processing" class="section level1">
 <h1>Data Processing</h1>
@@ -464,8 +464,9 @@ Population) * (DOF-E6 July 1st Total County Population)</li>
 </ul>
 <p>Note: The total county population estimates in
 <strong>DOF-P3</strong> already match the July county estimates in
-<strong>DOF-E6</strong> for 2000-2009.</p>
-<pre class="r"><code>countyARS &lt;- p3 %&gt;% 
+<strong>DOF-E6</strong> for 2000-2019.</p>
+<pre class="r"><code># Adjusting county ARS (p3) to dof e6
+countyARS &lt;- p3 %&gt;% 
     rename(popP3 = population)%&gt;% 
     # group_by(county, year, source)%&gt;% 
     group_by(county, year)%&gt;%
@@ -629,12 +630,14 @@ Therefore:</p>
 <li>decennial 2010 city:county proportions are multiplied to DOF P3
 2010-2019 data</li>
 <li>decennial 2020 city:county proportions are multiplied to DOF P3
-2020-2024 data</li>
+2020+ data</li>
 </ul>
-<pre class="r"><code>joinCityCounty &lt;- function(myYear, mySource = NULL) {
-  myYears &lt;- myYear:(myYear+9)
+<pre class="r"><code>joinCityCounty &lt;- function(myYears, mySource = NULL) {
   
-  tCity &lt;- censusCityCountyARS %&gt;% filter(year == myYear) %&gt;% select(-year)
+  decennialYear &lt;- min(myYears)
+  # myYears &lt;- myYear:(myYear+9)
+  
+  tCity &lt;- censusCityCountyARS %&gt;% filter(year == decennialYear) %&gt;% select(-year)
   
   # if (mySource == &quot;old dof&quot;) {
   #   tCounty &lt;- countyARS %&gt;% filter(year %in% myYears, source == mySource)
@@ -671,11 +674,14 @@ if (F) {
   
 }
 
-# 2000-CY data using DOF&#39;s intercensal estimates (2000-2019) and most recent P3 (2020-CY) 
+# 2000+ data using DOF&#39;s intercensal estimates (2000-2019) and most recent P3 (2020+) 
+
+maxYear &lt;- max(countyARS$year)
+
 cityARS_final &lt;- bind_rows(
-  joinCityCounty(2000),
-  joinCityCounty(2010),
-  joinCityCounty(2020)
+  joinCityCounty(2000:2009),
+  joinCityCounty(2010:2019),
+  joinCityCounty(2020:maxYear)
 ) %&gt;% 
   mutate(population = cityCountyProp * population)%&gt;%
   select(county_lhj = NAME, year, sex, age, raceEth, population)
@@ -722,10 +728,10 @@ level:</p>
 Population) - (Long Beach ARS Population + Pasadena ARS
 Population)</p></li>
 </ul>
-<p>Note: Negative population estimates are calculated for around 34
-sex-age-race-health department stratas. These all occur in NH/PI,
-Multi-Race, or AI/AN 95+ year olds whose populations are very small.
-These negative values are set to 0.</p>
+<p>Note: Negative population estimates are calculated for 29
+sex-age-race-health department stratas. These all occur in Multi-Race
+and AI/AN 95+ year olds whose populations are very small. These negative
+values are set to 0.</p>
 <pre class="r"><code># Health Department estimates ----------------------
 hdARS &lt;- cityARS_final_adj %&gt;% 
   mutate(county_lhj = ifelse(county_lhj == &quot;Berkeley&quot;, &quot;Berkeley&quot;, &quot;Pasadena/Long Beach&quot;))%&gt;% 
@@ -815,13 +821,31 @@ library(ggplot2)
 ggplot(checkTotals, aes(x = year, y = population)) +
   geom_line() +
   facet_wrap(vars(race_eth), scales = &quot;free_y&quot;) +
-  scale_x_continuous(minor_breaks = 2000:2024, breaks = 2000:2024, labels = 2000:2024) +
+  scale_x_continuous(minor_breaks = 2000:maxYear, breaks = 2000:maxYear, labels = 2000:maxYear) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+# Compare to prior file
+lhjARS_old &lt;- readRDS(paste0(outputDir, &quot;lhj-pop-ars-2000-cy.RDS&quot;)) %&gt;% 
+  rename(old = population)
+
+comp &lt;- full_join(
+  lhjARS_old, 
+  rename(lhjARS, new = population)
+) %&gt;% 
+  mutate(diff = new - old, 
+         pdiff = diff / old)
+
+# Check proj years
+lhjARS %&gt;% 
+  filter(year %in% 2025:2030) %&gt;% 
+  pivot_wider(names_from = year, values_from = population) %&gt;% 
+  View()
+  
 
 # Save data -------------------------------------
 
-saveRDS(lhjARS, paste0(outputDir, &quot;lhj-pop-ars-2000-cy.RDS&quot;))
-write_csv(lhjARS, paste0(outputDir, &quot;lhj-pop-ars-2000-cy.csv&quot;))</code></pre>
+saveRDS(lhjARS, paste0(outputDir, &quot;lhj-pop-ars-2000-&quot;, maxYear, &quot;.RDS&quot;))
+write_csv(lhjARS, paste0(outputDir, &quot;lhj-pop-ars-2000-&quot;, maxYear, &quot;.csv&quot;))</code></pre>
 </div>
 </div>
 

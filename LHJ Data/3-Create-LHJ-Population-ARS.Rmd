@@ -1,6 +1,6 @@
 ---
 title: "Create LHJ Sex-Age-Race/Ethnicity Population Data"
-author: "CDPH/LHJ Population Task Force"
+author: "CDPH/LHJ Population Data Work Group (PopDaWG)"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
@@ -11,43 +11,36 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, eval = FALS
 
 # Introduction
 
-This RMarkdown file creates two datasets with age-race/ethnicity-sex population estimates for:
+This RMarkdown file creates a dataset with age-race/ethnicity-sex population estimates and projections for:
 
 -   All 58 counties
 -   The 3 city-based jurisdictions: Berkeley, Long Beach, and Pasadena
 -   Alameda Health Department
 -   Los Angeles Health Department
 
-The first dataset contains estimates from 2000-2023, and is recommended to use for trends.
-
-The second dataset contains estimates from 2020-2023, and is recommended to use when reporting data on recent years only.
-
 ## Population Data Required
 
 Outputs from *1a-Process-Historical-Raw-Data.Rmd* and *1b-Process-Current-Raw-Data.Rmd*:
 
-1.  intermediatePopData/census-city-ars-historical.RDS & intermediatePopData/census-city-ars-current.RDS
+1.  outputs/intermediate/census-city-ars-historical.RDS & outputs/intermediate/census-city-ars-current.RDS
 
     1.  City-level Sex-Age-Race/Ethnicity population estimates pulled from the 2000, 2010, and 2020 Decennial.
 
-2.  intermediatePopData/census-county-ars-historical.RDS & intermediatePopData/census-county-ars-current.RDS
+2.  outputs/intermediate/census-county-ars-historical.RDS & outputs/intermediate/census-county-ars-current.RDS
 
     1.  County-level Sex-Age-Race/Ethnicity population estimates pulled from the 2000, 2010, and 2020 Decennial.
 
-3.  intermediatePopData/dof-p3-processed-historical.RDS & intermediatePopData/dof-p3-processed-current.RDS
+3.  outputs/intermediate/dof-p3-processed-historical.RDS & outputs/intermediate/dof-p3-processed-current.RDS
 
-    1.  Processed Sex-Age-Race/Ethnicity population estimates from 2000-2024
+    1.  Processed Sex-Age-Race/Ethnicity population estimates and projections from 2000+
 
-4.  intermediatePopData/lhj-population-total.RDS
+4.  outputs/intermediate/lhj-population-total.RDS
 
-    1.  Total July LHJ population estimates
+    1.  Total July LHJ population estimates and projections
 
-Final outputs are saved as csv and RDS files in finalPopData/:
+Final output is saved as csv and RDS file in outputs/final/:
 
-1.  lhj-pop-ars-2000-cy
-2.  lhj-pop-ars-2020-cy
-
-Note: 'cy' means 'current year' which is 2024.
+1.  lhj-pop-ars-2000-2030
 
 # Setup
 
@@ -67,8 +60,8 @@ library(tidyr) # Data reshaping
 cities <- c("Berkeley", "Long Beach", "Pasadena")
 
 # Directories
-inputDir <- "intermediatePopData/"
-outputDir <- "finalPopData/"
+inputDir <- "outputs/intermediate/"
+outputDir <- "outputs/final/"
 ```
 
 # Data Processing
@@ -108,10 +101,10 @@ Adjustment formula:
 
 -   (DOF-P3 County ARS Strata Population) / (DOF-P3 Total County Population) \* (DOF-E6 July 1st Total County Population)
 
-Note: The total county population estimates in **DOF-P3** already match the July county estimates in **DOF-E6** for 2000-2009.
+Note: The total county population estimates in **DOF-P3** already match the July county estimates in **DOF-E6** for 2000-2019.
 
 ```{r}
-
+# Adjusting county ARS (p3) to dof e6
 countyARS <- p3 %>% 
     rename(popP3 = population)%>% 
     # group_by(county, year, source)%>% 
@@ -276,14 +269,16 @@ Note: Census Decennial data only has data for 2000, 2010, and 2020. Therefore:
 
 -   decennial 2000 city:county proportions are multiplied to DOF P3 2000-2009 data
 -   decennial 2010 city:county proportions are multiplied to DOF P3 2010-2019 data
--   decennial 2020 city:county proportions are multiplied to DOF P3 2020-2024 data
+-   decennial 2020 city:county proportions are multiplied to DOF P3 2020+ data
 
 ```{r}
 
-joinCityCounty <- function(myYear, mySource = NULL) {
-  myYears <- myYear:(myYear+9)
+joinCityCounty <- function(myYears, mySource = NULL) {
   
-  tCity <- censusCityCountyARS %>% filter(year == myYear) %>% select(-year)
+  decennialYear <- min(myYears)
+  # myYears <- myYear:(myYear+9)
+  
+  tCity <- censusCityCountyARS %>% filter(year == decennialYear) %>% select(-year)
   
   # if (mySource == "old dof") {
   #   tCounty <- countyARS %>% filter(year %in% myYears, source == mySource)
@@ -320,11 +315,14 @@ if (F) {
   
 }
 
-# 2000-CY data using DOF's intercensal estimates (2000-2019) and most recent P3 (2020-CY) 
+# 2000+ data using DOF's intercensal estimates (2000-2019) and most recent P3 (2020+) 
+
+maxYear <- max(countyARS$year)
+
 cityARS_final <- bind_rows(
-  joinCityCounty(2000),
-  joinCityCounty(2010),
-  joinCityCounty(2020)
+  joinCityCounty(2000:2009),
+  joinCityCounty(2010:2019),
+  joinCityCounty(2020:maxYear)
 ) %>% 
   mutate(population = cityCountyProp * population)%>%
   select(county_lhj = NAME, year, sex, age, raceEth, population)
@@ -370,7 +368,7 @@ Calculate sex-age-race/ethnicity estimates at the health department level:
 
 -   Los Angeles HD ARS Population = (Los Angeles County ARS Population) - (Long Beach ARS Population + Pasadena ARS Population)
 
-Note: Negative population estimates are calculated for around 34 sex-age-race-health department stratas. These all occur in NH/PI, Multi-Race, or AI/AN 95+ year olds whose populations are very small. These negative values are set to 0.
+Note: Negative population estimates are calculated for 29 sex-age-race-health department stratas. These all occur in Multi-Race and AI/AN 95+ year olds whose populations are very small. These negative values are set to 0.
 
 ```{r}
 
@@ -388,7 +386,6 @@ hdARS <- cityARS_final_adj %>%
          county_lhj = ifelse(city == "Berkeley", "Alameda HD", "Los Angeles HD"))%>% 
   # select(county_lhj, year, sex, age, raceEth, source, population)
   select(county_lhj, year, sex, age, raceEth, population)
-
 
 ```
 
@@ -469,13 +466,31 @@ library(ggplot2)
 ggplot(checkTotals, aes(x = year, y = population)) +
   geom_line() +
   facet_wrap(vars(race_eth), scales = "free_y") +
-  scale_x_continuous(minor_breaks = 2000:2024, breaks = 2000:2024, labels = 2000:2024) +
+  scale_x_continuous(minor_breaks = 2000:maxYear, breaks = 2000:maxYear, labels = 2000:maxYear) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+# Compare to prior file
+lhjARS_old <- readRDS(paste0(outputDir, "lhj-pop-ars-2000-cy.RDS")) %>% 
+  rename(old = population)
+
+comp <- full_join(
+  lhjARS_old, 
+  rename(lhjARS, new = population)
+) %>% 
+  mutate(diff = new - old, 
+         pdiff = diff / old)
+
+# Check proj years
+lhjARS %>% 
+  filter(year %in% 2025:2030) %>% 
+  pivot_wider(names_from = year, values_from = population) %>% 
+  View()
+  
 
 # Save data -------------------------------------
 
-saveRDS(lhjARS, paste0(outputDir, "lhj-pop-ars-2000-cy.RDS"))
-write_csv(lhjARS, paste0(outputDir, "lhj-pop-ars-2000-cy.csv"))
+saveRDS(lhjARS, paste0(outputDir, "lhj-pop-ars-2000-", maxYear, ".RDS"))
+write_csv(lhjARS, paste0(outputDir, "lhj-pop-ars-2000-", maxYear, ".csv"))
 
 
 

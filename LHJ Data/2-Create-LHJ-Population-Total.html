@@ -9,9 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Jaspreet Kang" />
+<meta name="author" content="CDPH/LHJ Population Data Work Group (PopDaWG)" />
 
-<meta name="date" content="2025-06-10" />
+<meta name="date" content="2026-02-09" />
 
 <title>Create Total LHJ Population Data</title>
 
@@ -299,17 +299,23 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "\e259";
+.tabset-dropdown > .nav-tabs > li.active:before {
+content: "";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "\e258";
-font-family: 'Glyphicons Halflings';
+content: "";
 border: none;
+}
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "";
+font-family: 'Glyphicons Halflings';
+display: inline-block;
+padding: 10px;
+border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -351,8 +357,8 @@ display: none;
 
 
 <h1 class="title toc-ignore">Create Total LHJ Population Data</h1>
-<h4 class="author">Jaspreet Kang</h4>
-<h4 class="date">June 10, 2025</h4>
+<h4 class="author">CDPH/LHJ Population Data Work Group (PopDaWG)</h4>
+<h4 class="date">February 09, 2026</h4>
 
 </div>
 
@@ -365,37 +371,43 @@ estimates. This dataset is used in
 adjusting the DOF age-race-sex estimates to these estimates.</p>
 <div id="population-data-required" class="section level2">
 <h2>Population Data Required</h2>
-<p>Four outputs are used from
+<p>The following outputs are used from
 <em>1a-Process-Historical-Raw-Data.Rmd</em> and
 <em>1b-Process-Current-Raw-Data.Rmd</em>:</p>
 <ol style="list-style-type: decimal">
-<li><p><em>intermediatePopData/dof-e4-processed-historical.RDS</em></p>
+<li><p><em>outputs/intermediate/dof-e4-processed-historical.RDS</em></p>
 <ol style="list-style-type: decimal">
 <li>Contains city to county proportions (using January 1st estimates)
 from 1970-2010.</li>
 </ol></li>
-<li><p><em>intermediatePopData/dof-e4-processed-current.RDS</em></p>
+<li><p><em>outputs/intermediate/dof-e4-processed-current.RDS</em></p>
 <ol style="list-style-type: decimal">
 <li>Contains city to county proportions (using January 1st estimates)
-from 2011-2025.</li>
+from 2011+.</li>
 </ol></li>
-<li><p><em>intermediatePopData/dof-e6-processed-historical.RDS</em></p>
+<li><p><em>outputs/intermediate/dof-e6-processed-historical.RDS</em></p>
 <ol style="list-style-type: decimal">
 <li>Processed DOF July 1st estimates for counties from 1947-2009</li>
 </ol></li>
-<li><p><em>intermediatePopData/dof-e6-processed-current.RDS</em></p>
+<li><p><em>outputs/intermediate/dof-e6-processed-current.RDS</em></p>
 <ol style="list-style-type: decimal">
-<li>Processed DOF July 1st estimates for counties from 2010-2024</li>
+<li>Processed DOF July 1st estimates for counties from 2010+</li>
+</ol></li>
+<li><p><em>outputs/intermediate/dof-p3-processed-current.RDS</em></p>
+<ol style="list-style-type: decimal">
+<li>Processed DOF July 1st estimates/projections for counties from
+2020+. Only projection years are used in this script.</li>
 </ol></li>
 </ol>
 </div>
 <div id="method" class="section level2">
 <h2>Method</h2>
-<p>To calculate total July population estimates for the 3 cities,
-multiply each city-to-county proportion to its respective county July
-population to get a city July population estimate.</p>
-<p>Then, to calculate total July population estimates for Alameda and
-Los Angeles Health Departments:</p>
+<p>To calculate total July population estimates and projections for the
+3 cities, multiply each city-to-county proportion to its respective
+county July population to get a city July population estimate and
+projection.</p>
+<p>Then, to calculate total July population estimates/projections for
+Alameda and Los Angeles Health Departments:</p>
 <ol style="list-style-type: decimal">
 <li><p>Alameda HD July population = Alameda County July population -
 Berkeley City July population</p></li>
@@ -407,7 +419,7 @@ population)</p></li>
 <div id="data-file-outputs" class="section level2">
 <h2>Data File Outputs</h2>
 <p>Output is saved as a csv and RDS file into
-<em>intermediatePopData/</em>:</p>
+<em>outputs/intermediate/</em>:</p>
 <ol style="list-style-type: decimal">
 <li><em>lhj-population-total.RDS</em></li>
 <li><em>lhj-population-total.csv</em></li>
@@ -429,7 +441,7 @@ library(tidyr) # Data reshaping
 cities &lt;- c(&quot;Berkeley&quot;, &quot;Long Beach&quot;, &quot;Pasadena&quot;)
 
 # Directory to read input data files from
-inputDir &lt;- &quot;intermediatePopData/&quot;
+inputDir &lt;- &quot;outputs/intermediate/&quot;
 
 # Directory to save output files to
 outputDir &lt;- inputDir</code></pre>
@@ -445,7 +457,38 @@ e4 &lt;- bind_rows(e4_historical, e4_current) # Combine e4 historical and curren
 
 e6_historical &lt;- readRDS(paste0(inputDir, &quot;dof-e6-processed-historical.RDS&quot;))
 e6_current &lt;- readRDS(paste0(inputDir, &quot;dof-e6-processed-current.RDS&quot;))
-e6 &lt;- bind_rows(e6_historical, e6_current) # Combine e6 historical and current</code></pre>
+e6 &lt;- bind_rows(e6_historical, e6_current) # Combine e6 historical and current
+
+# P3 current - Projection years only
+currentYear &lt;- max(e6$year)
+projectionYears &lt;- (currentYear+1):(currentYear+5)
+
+p3_current &lt;- readRDS(paste0(inputDir, &quot;dof-p3-processed-current.RDS&quot;)) %&gt;% 
+  filter(year %in% projectionYears) %&gt;% 
+  bind_rows(mutate(., county = &quot;California&quot;)) %&gt;% 
+  group_by(year, county) %&gt;% 
+  summarise(population = sum(population)) %&gt;% 
+  ungroup()
+
+# Add projection years to e4 and e6
+# For e4: Use currentYear city:county proportion for projection years
+# For e6: Use p3&#39;s projections
+
+## E4 -----
+currentYear_e4 &lt;- max(e4$year)
+addYears_e4 &lt;- setdiff(projectionYears, currentYear_e4)
+
+for (projectionYear in projectionYears) {
+  e4 &lt;- bind_rows(
+    e4, 
+    e4 %&gt;% filter(year == currentYear_e4) %&gt;% mutate(year = projectionYear)
+  )
+}
+
+## E6 -----
+
+e6 &lt;- e6 %&gt;% 
+  bind_rows(p3_current)</code></pre>
 </div>
 <div id="calculate-lhj-total-estimates" class="section level1">
 <h1>Calculate LHJ Total Estimates</h1>
@@ -489,7 +532,8 @@ if (FALSE) {
   al &lt;- lhjJuly_final %&gt;% 
     filter(county_lhj %in% c(&quot;Berkeley&quot;, &quot;Alameda HD&quot;, &quot;Alameda&quot;)) %&gt;% 
     pivot_wider(names_from = county_lhj, values_from = population) %&gt;% 
-    mutate(eq = Berkeley + `Alameda HD` == Alameda)
+    mutate(eq = Berkeley + `Alameda HD` == Alameda, 
+           city_county_prop = Berkeley / Alameda)
 }
 
 

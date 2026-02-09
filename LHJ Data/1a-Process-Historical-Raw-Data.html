@@ -9,9 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="CDPH/LHJ Population Task Force" />
+<meta name="author" content="CDPH/LHJ Population Data Work Group (PopDaWG)" />
 
-<meta name="date" content="2024-08-12" />
+<meta name="date" content="2026-02-09" />
 
 <title>Pulling and Processing Historical Raw Population Data</title>
 
@@ -299,17 +299,23 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "\e259";
+.tabset-dropdown > .nav-tabs > li.active:before {
+content: "";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "\e258";
-font-family: 'Glyphicons Halflings';
+content: "";
 border: none;
+}
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "";
+font-family: 'Glyphicons Halflings';
+display: inline-block;
+padding: 10px;
+border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -352,8 +358,8 @@ display: none;
 
 <h1 class="title toc-ignore">Pulling and Processing Historical Raw
 Population Data</h1>
-<h4 class="author">CDPH/LHJ Population Task Force</h4>
-<h4 class="date">August 12, 2024</h4>
+<h4 class="author">CDPH/LHJ Population Data Work Group (PopDaWG)</h4>
+<h4 class="date">February 09, 2026</h4>
 
 </div>
 
@@ -365,7 +371,7 @@ data.</p>
 <p>Note: This Rmarkdown only needs to be executed once to produce the
 historical population datasets. Once produced, this file never needs to
 be ran again <strong>unless</strong> any of the historical data files
-(listed further below) are updated after June 14, 2024.</p>
+(listed further below) are updated.</p>
 <div id="population-data-required" class="section level2">
 <h2>Population Data Required:</h2>
 <p>The population data files extracted and processed include:</p>
@@ -374,7 +380,8 @@ be ran again <strong>unless</strong> any of the historical data files
 Estimates by Race/Ethnicity with Age and Gender Detail</p>
 <ol style="list-style-type: decimal">
 <li><p>Downloaded from <a href="https://dof.ca.gov/forecasting/demographics/estimates/annual-intercensal-population-estimates-by-race-ethnicity-with-age-and-gender-detail/">here</a></p></li>
-<li><p>Location: <em>P3/Intercensal_2000-2010_DBInput.csv</em></p></li>
+<li><p>Location: <em>inputs/DOF/Annual
+Intercensal/2000-2010/Intercensal_2000-2010_DBInput.csv</em></p></li>
 <li><p>Contains county-level Sex-Age-Race/Ethnicity population estimates
 for April 1, 2000 and 2010 and July 1, 2000 through 2010 estimates. July
 1, 2000 through July 1, 2009 estimates are used.</p></li>
@@ -390,9 +397,9 @@ are pulled from the 2000 and 2010 Decennial.</li>
 Cities, Counties, and the State</p>
 <ol style="list-style-type: decimal">
 <li><p>Excel files of these data were downloaded from <a href="https://dof.ca.gov/forecasting/demographics/estimates/">here</a>,
-and are stored in <em>E4/Raw/</em>. The raw data were then manually
-formatted for easier processing and stored into
-<em>E4/Clean/</em>.</p></li>
+and are stored in <em>inputs/DOF/E4/Raw/</em>. The raw data were then
+manually formatted for easier processing and stored into
+<em>inputs/DOF/E4/Clean/</em>.</p></li>
 <li><p>Contains January 1st county- and city-level total estimates from
 1970-2010</p></li>
 </ol></li>
@@ -400,21 +407,21 @@ formatted for easier processing and stored into
 of Change by County</p>
 <ol style="list-style-type: decimal">
 <li><p>Excel files of these data were downloaded from <a href="https://dof.ca.gov/forecasting/demographics/estimates/">here</a>,
-and are stored in <em>E6/Raw/</em>. The raw data were then manually
-formatted for easier processing and stored into
-<em>E6/Clean/.</em></p></li>
+and are stored in <em>inputs/DOF/E6/Raw/</em>. The raw data were then
+manually formatted for easier processing and stored into
+<em>inputs/DOF/E6/Clean/.</em></p></li>
 <li><p>Contains July 1st county-level total estimates from
 1947-2009</p></li>
 </ol></li>
 </ol>
-<p>Note: The data structure and formatting between each of DOF’s raw E-4
-and E-6 files are largely inconsistent. Therefore, these files were
-first manually converted to a standard format.</p>
+<p>Note: The data structure and formatting for each of DOF’s raw E-4 and
+E-6 files are largely inconsistent. Therefore, these files were first
+manually transformed into a standard format.</p>
 </div>
 <div id="data-file-outputs" class="section level2">
 <h2>Data File Outputs:</h2>
 <p>The processed datasets are saved as csv and RDS files into
-<em>intermediatePopData/</em>:</p>
+<em>outputs/intermediate/</em>:</p>
 <ol style="list-style-type: decimal">
 <li><p><em>dof-p3-processed-historical</em></p>
 <ol style="list-style-type: decimal">
@@ -458,7 +465,7 @@ cities &lt;- c(&quot;Berkeley&quot;, &quot;Long Beach&quot;, &quot;Pasadena&quot
 
 
 # Directory to save output files to
-outputDir &lt;- &quot;intermediatePopData/&quot;</code></pre>
+outputDir &lt;- &quot;outputs/intermediate/&quot;</code></pre>
 </div>
 <div id="process-and-save-data" class="section level2">
 <h2>Process and Save Data</h2>
@@ -466,16 +473,16 @@ outputDir &lt;- &quot;intermediatePopData/&quot;</code></pre>
 <h3>Department of Finance’s <strong>Annual Intercensal Population
 Estimates by Race/Ethnicity with Age and Gender Detail</strong></h3>
 <pre class="r"><code># County relationship file: Used for linking DOF&#39;s county codes to county names. =======
-countyLink &lt;- read_xlsx(&quot;Standards/countyLink.xlsx&quot;) %&gt;% 
+countyLink &lt;- read_xlsx(&quot;inputs/Standards/countyLink.xlsx&quot;) %&gt;% 
   select(county = countyName, CountyCode = cdphcaCountyTxt)
 
 # Race labels crosswalk: Used for linking DOF&#39;s race/ethnicity codes to a standard set of race/ethnicity labels.
-raceLink &lt;- read_xlsx(&quot;Standards/raceLink.xlsx&quot;) %&gt;% 
+raceLink &lt;- read_xlsx(&quot;inputs/Standards/raceLink.xlsx&quot;) %&gt;% 
   select(race7, raceEth = raceNameShort)
 
 # Read in and process data =======
 # Contains Sex-Age-Race/Ethnicity population estimates for April 1, 2000 and 2010 and July 1, 2000 through 2010 estimates. July 1, 2000 through July 1, 2009 estimates are used.
-p3_historical &lt;- read_csv(&quot;P3/Intercensal_2000-2010_DBInput.csv&quot;) %&gt;% 
+p3_historical &lt;- read_csv(&quot;inputs/DOF/Annual Intercensal/2000-2010/Intercensal_2000-2010_DBInput.csv&quot;) %&gt;% 
   mutate(year  = as.numeric(str_sub(Year,5,9)),
          month = as.numeric(str_sub(Year,1,1))) %&gt;%    
   filter(month == 7)  %&gt;% # Use July estimates
@@ -493,7 +500,7 @@ p3_historical &lt;- read_csv(&quot;P3/Intercensal_2000-2010_DBInput.csv&quot;) %
   select(county, year, sex, raceEth, age, population) %&gt;% 
   filter(year != 2010) # Remove 2010 here?
 
-# Save data as both csv and RDS into into intermediatePopData/ =======
+# Save data as both csv and RDS into into outputs/intermediate/ =======
 saveRDS(p3_historical, paste0(outputDir, &quot;dof-p3-processed-historical.RDS&quot;))
 write_csv(p3_historical, paste0(outputDir, &quot;dof-p3-processed-historical.csv&quot;))</code></pre>
 </div>
@@ -503,14 +510,14 @@ population</h3>
 <p>Note: Census API key required, which can be obtained from <a href="https://api.census.gov/data/key_signup.html">here</a>.</p>
 <pre class="r"><code># Census API Key: Set your API key here, which can be obtained from
 # https://api.census.gov/data/key_signup.html
-.ckey   &lt;- read_file(&quot;Standards/census.api.key.txt&quot;)
+.ckey   &lt;- read_file(&quot;inputs/Standards/census.api.key.txt&quot;)
 census_api_key(.ckey) # Load census API key into sesesion
 
 # Read in Census Decennial relationship file ======================
 # Links table IDs to their corresponding sex by age by R/E stratas
 
-decLink2000 &lt;- read_excel(&quot;Standards/decennialLink.xlsx&quot;, sheet = &quot;2000 ARS&quot;)
-decLink2010 &lt;- read_excel(&quot;Standards/decennialLink.xlsx&quot;, sheet = &quot;2010 ARS&quot;)
+decLink2000 &lt;- read_excel(&quot;inputs/Standards/decennialLink.xlsx&quot;, sheet = &quot;2000 ARS&quot;)
+decLink2010 &lt;- read_excel(&quot;inputs/Standards/decennialLink.xlsx&quot;, sheet = &quot;2010 ARS&quot;)
 
 # Custom Function to pull decennial census data =============================
 # Calls tidycensus&#39; get_decennial() function, and links the resultant data frame to our census decennial relationship file
@@ -591,8 +598,8 @@ process_e4 &lt;- function(years) {
   colNames &lt;- c(&quot;place&quot;, paste0(&quot;1/1/&quot;, years))
   
   fileName &lt;- ifelse(2021 %in% years, 
-                     &quot;E4/Clean/E4-2021-cy.xlsx&quot;,
-                     paste0(&quot;E4/Clean/E4-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
+                     &quot;inputs/DOF/E4/Clean/E4-2021-cy.xlsx&quot;,
+                     paste0(&quot;inputs/DOF/E4/Clean/E4-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
   
   tCountyCity &lt;- lapply(c(&quot;County&quot;, &quot;City&quot;), function(x) {
     
@@ -632,7 +639,7 @@ write_csv(e4_final, paste0(outputDir, &quot;dof-e4-processed-historical.csv&quot
 Change by County</h3>
 <pre class="r"><code># Process 1947-1969 data --------------------------------
 
-e6_1947_69 &lt;- read_excel(&quot;E6/Clean/E6-1947-1969.xlsx&quot;, col_names = c(&quot;county&quot;, 1947:1969), skip = 1) %&gt;% 
+e6_1947_69 &lt;- read_excel(&quot;inputs/DOF/E6/Clean/E6-1947-1969.xlsx&quot;, col_names = c(&quot;county&quot;, 1947:1969), skip = 1) %&gt;% 
   pivot_longer(-county, names_to = &quot;year&quot;, values_to = &quot;population&quot;) %&gt;% 
   mutate(year = as.numeric(year))
 
@@ -640,8 +647,8 @@ e6_1947_69 &lt;- read_excel(&quot;E6/Clean/E6-1947-1969.xlsx&quot;, col_names = 
 process_e6 &lt;- function(years) {
   
   fileName &lt;- ifelse(2021 %in% years, 
-                     &quot;E6/Clean/E6-2020-cy.xlsx&quot;,
-                     paste0(&quot;E6/Clean/E6-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
+                     &quot;inputs/DOF/E6/Clean/E6-2020-cy.xlsx&quot;,
+                     paste0(&quot;inputs/DOF/E6/Clean/E6-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
   
   read_excel(fileName) %&gt;% 
     rename(county = County, year = Year) %&gt;% 

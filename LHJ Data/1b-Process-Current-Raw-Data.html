@@ -9,9 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="CDPH/LHJ Population Task Force" />
+<meta name="author" content="CDPH/LHJ Population Data Work Group (PopDaWG)" />
 
-<meta name="date" content="2025-06-10" />
+<meta name="date" content="2026-02-09" />
 
 <title>Pulling and Processing Recent Raw Population Data</title>
 
@@ -299,17 +299,23 @@ overflow-y: auto;
 border: 1px solid #ddd;
 border-radius: 4px;
 }
-.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-content: "\e259";
+.tabset-dropdown > .nav-tabs > li.active:before {
+content: "";
 font-family: 'Glyphicons Halflings';
 display: inline-block;
 padding: 10px;
 border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-content: "\e258";
-font-family: 'Glyphicons Halflings';
+content: "";
 border: none;
+}
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+content: "";
+font-family: 'Glyphicons Halflings';
+display: inline-block;
+padding: 10px;
+border-right: 1px solid #ddd;
 }
 .tabset-dropdown > .nav-tabs > li.active {
 display: block;
@@ -352,8 +358,8 @@ display: none;
 
 <h1 class="title toc-ignore">Pulling and Processing Recent Raw
 Population Data</h1>
-<h4 class="author">CDPH/LHJ Population Task Force</h4>
-<h4 class="date">June 10, 2025</h4>
+<h4 class="author">CDPH/LHJ Population Data Work Group (PopDaWG)</h4>
+<h4 class="date">February 09, 2026</h4>
 
 </div>
 
@@ -374,8 +380,8 @@ maintained, updated, and executed whenever a new population data file
 <li><p>Department of Finance (DOF) Annual Intercensal Population
 Estimates by Race/Ethnicity with Age and Gender Detail</p>
 <ol style="list-style-type: decimal">
-<li><p>Location: <em>P3/intercensals_2010_2020.csv</em></p></li>
-<li><p>Released 2025.01.29</p></li>
+<li><p>Location: <em>inputs/DOF/Annual
+Intercensal/2010-2020/intercensals_2010_2020.csv</em></p></li>
 <li><p>Downloaded from <a href="https://dof.ca.gov/forecasting/demographics/estimates/annual-intercensal-population-estimates-by-race-ethnicity-with-age-and-gender-detail-2010-2020/">here</a></p></li>
 <li><p>2010-2019 population estimates are used.</p></li>
 <li><p>Contains sex by age by race/ethnicity population estimates at the
@@ -384,10 +390,9 @@ county-level.</p></li>
 <li><p>Department of Finance (DOF) P3 Complete State and County
 Projections Dataset</p>
 <ol style="list-style-type: decimal">
-<li><p>Location: <em>P3/P3_Complete.csv</em></p></li>
-<li><p>Vintage 2025 (released 2025.04.25)</p></li>
+<li><p>Location: <em>inputs/DOF/P3/P3_Complete.csv</em></p></li>
 <li><p>Downloaded from <a href="https://dof.ca.gov/forecasting/demographics/projections/">here</a></p></li>
-<li><p>2020-2024 population estimates are used.</p></li>
+<li><p>2020+ population estimates and projections are used.</p></li>
 <li><p>Contains sex by age by race/ethnicity population estimates at the
 county-level.</p></li>
 </ol></li>
@@ -402,30 +407,31 @@ are pulled from the 2020 Decennial.</li>
 Counties, and the State</p>
 <ol style="list-style-type: decimal">
 <li><p>Excel files of these data were downloaded from <a href="https://dof.ca.gov/forecasting/demographics/estimates/">here</a>,
-and are stored in <em>E4/Raw/</em>. The raw data were then manually
-formatted for easier processing and stored into
-<em>E4/Clean/</em>.</p></li>
+and are stored in <em>inputs/DOF/E4/Raw/</em>. The raw data were then
+manually formatted for easier processing and stored into
+<em>inputs/DOF/E4/Clean/</em>.</p></li>
 <li><p>Contains January 1st county- and city-level total estimates from
-2011-2025</p></li>
+2011+</p></li>
 </ol></li>
 <li><p>Department of Finance - E-6 Population Estimates and Components
 of Change by County</p>
 <ol style="list-style-type: decimal">
 <li><p>Excel files of these data were downloaded from <a href="https://dof.ca.gov/forecasting/demographics/estimates/">here</a>,
-and are stored in <em>E6/Raw/</em>. The raw data were then manually
-formatted for easier processing stored into <em>E6/Clean/.</em></p></li>
+and are stored in <em>inputs/DOF/E6/Raw/</em>. The raw data were then
+manually formatted for easier processing stored into
+<em>inputs/DOF/E6/Clean/.</em></p></li>
 <li><p>Contains July 1st county-level total estimates from
-2010-2024</p></li>
+2010+</p></li>
 </ol></li>
 </ol>
 <p>Note: The data structure and formatting between each of DOF’s raw E-4
 and E-6 files are largely inconsistent. Therefore, these files were
-first manually converted to a standard format.</p>
+first manually transformed into a standard format.</p>
 </div>
 <div id="data-file-outputs" class="section level2">
 <h2>Data File Outputs:</h2>
 <p>The processed datasets are saved as csv and RDS files into
-<em>intermediatePopData/</em>:</p>
+<em>outputs/intermediate/</em>:</p>
 <ol style="list-style-type: decimal">
 <li><em>dof-p3-processed-current</em></li>
 <li><em>census-city-ars-current</em></li>
@@ -442,7 +448,7 @@ first manually converted to a standard format.</p>
 <p>Note: The final product (LHJ-level sex-age-race/ethnicity population
 estimates - created in <em>3-Create-LHJ-Population-ARS.Rmd</em>) spans
 from 2000 to the most recent year of data available in DOF-E6
-(<strong>currentYear</strong> object below).</p>
+(<strong>currentYear</strong> object below) + 5 years.</p>
 <pre class="r"><code># Setup ========================================================================================
 
 # Disable scientific notation
@@ -461,28 +467,31 @@ library(tidycensus) # For interacting with Census API
 ## Global constants ---------------------------------------------
 
 # Set current year
-currentYear &lt;- 2024 # Jan E6 - most recent year available
+currentYear &lt;- 2025 # Jan E6 - most recent year available
 currentYear_Jan &lt;- 2025 # Jan E4 - most recent year available
+
+# Projection years: E6 max year + 5
+projectionYear &lt;- currentYear+5
 
 # City LHJs
 cities &lt;- c(&quot;Berkeley&quot;, &quot;Long Beach&quot;, &quot;Pasadena&quot;)
 
 
 # Directory to save output files to
-outputDir &lt;- &quot;intermediatePopData/&quot;</code></pre>
+outputDir &lt;- &quot;outputs/intermediate/&quot;</code></pre>
 </div>
 <div id="process-and-save-data" class="section level2">
 <h2>Process and Save Data</h2>
-<div id="department-of-finances-p3-complete-state-and-county-projections-dataset" class="section level3">
-<h3>Department of Finance’s P3 Complete State and County Projections
-Dataset</h3>
+<div id="department-of-finances-annual-intercensal-and-p3-complete-state-and-county-projections-dataset" class="section level3">
+<h3>Department of Finance’s Annual Intercensal and P3 Complete State and
+County Projections Dataset</h3>
 <pre class="r"><code># County relationship file: Used for linking DOF&#39;s county codes to county names. =======
-countyLink &lt;- read_xlsx(&quot;Standards/countyLink.xlsx&quot;) %&gt;% 
+countyLink &lt;- read_xlsx(&quot;inputs/Standards/countyLink.xlsx&quot;) %&gt;% 
   select(county = countyName, fips = FIPSCounty) %&gt;% 
   mutate(fips = as.numeric(paste0(&quot;6&quot;, fips)))
 
 # Race labels crosswalk: Used for linking DOF&#39;s race/ethnicity codes to a standard set of race/ethnicity labels.
-raceLink &lt;- read_xlsx(&quot;Standards/raceLink.xlsx&quot;) %&gt;% 
+raceLink &lt;- read_xlsx(&quot;inputs/Standards/raceLink.xlsx&quot;) %&gt;% 
   select(race7, raceEth = raceNameShort) %&gt;% 
   filter(!is.na(race7))
 
@@ -491,7 +500,7 @@ raceLink &lt;- read_xlsx(&quot;Standards/raceLink.xlsx&quot;) %&gt;%
 if (F) {
   # Previous DOF P3 ---------------------
   # Vintage 2020 (2021.7.14) version
-  p3_10_60 &lt;- read_csv(&quot;P3/P3_Complete_2010-2060.csv&quot;) %&gt;%
+  p3_10_60 &lt;- read_csv(&quot;inputs/DOF/P3/Archive/P3_Complete_2010-2060.csv&quot;) %&gt;%
     left_join(countyLink, by = &quot;fips&quot;) %&gt;% 
     mutate(sex = str_to_title(sex)) %&gt;% 
     select(county, year, sex, race7, age = agerc, population = perwt)
@@ -504,7 +513,7 @@ if (F) {
   
   # 2020 - Current --------------
   # Vintage 2023 (2024.3.8) version
-  p3_20_ &lt;- read_csv(&quot;P3/P3_Complete_2020-2060.csv&quot;) %&gt;% 
+  p3_20_ &lt;- read_csv(&quot;inputs/DOF/P3/Archive/P3_Complete_2020-2060.csv&quot;) %&gt;% 
     filter(year %in% 2020:currentYear) %&gt;% 
     left_join(countyLink, by = &quot;fips&quot;) %&gt;% 
     mutate(sex = str_to_title(sex)) %&gt;% 
@@ -524,16 +533,16 @@ if (F) {
 }
 
 # DOF Intercensal 2010-2019
-intercensal_10_19 &lt;- read_csv(&quot;P3/intercensals_2010_2020.csv&quot;) %&gt;% 
+intercensal_10_19 &lt;- read_csv(&quot;inputs/DOF/Annual Intercensal/2010-2020/intercensals_2010_2020.csv&quot;) %&gt;% 
   filter(month == 7) %&gt;% 
   left_join(countyLink, by = &quot;fips&quot;) %&gt;% 
   left_join(raceLink) %&gt;% 
   mutate(sex = str_to_title(sex)) %&gt;% 
   select(county, year, sex, raceEth, age = agerc, population = perwt)
 
-# DOF P3 Vintage 2025 (2025.04.25 version)
-p3_20_ &lt;- read_csv(&quot;P3/P3_Complete.csv&quot;) %&gt;% 
-  filter(year %in% 2020:currentYear) %&gt;% 
+# DOF P3 Vintage 2025 (2025.09.30 version)
+p3_20_ &lt;- read_csv(&quot;inputs/DOF/P3/P3_Complete.csv&quot;) %&gt;% 
+  filter(year %in% 2020:projectionYear) %&gt;% 
   left_join(countyLink, by = &quot;fips&quot;) %&gt;% 
   left_join(raceLink) %&gt;%
   mutate(sex = str_to_title(sex)) %&gt;% 
@@ -558,13 +567,13 @@ population</h3>
 <p>Note: Census API key required, which can be obtained from <a href="https://api.census.gov/data/key_signup.html">here</a>.</p>
 <pre class="r"><code># Census API Key: Set your API key here, which can be obtained from
 # https://api.census.gov/data/key_signup.html
-.ckey   &lt;- read_file(&quot;Standards/census.api.key.txt&quot;)
+.ckey   &lt;- read_file(&quot;inputs/Standards/census.api.key.txt&quot;)
 census_api_key(.ckey) # Load census API key into sesesion
 
 # Read in Census Decennial relationship file ======================
 # Links table IDs to their corresponding sex by age by R/E stratas
 
-decLink2020 &lt;- read_excel(&quot;Standards/decennialLink.xlsx&quot;, sheet = &quot;2020 ARS&quot;)
+decLink2020 &lt;- read_excel(&quot;inputs/Standards/decennialLink.xlsx&quot;, sheet = &quot;2020 ARS&quot;)
 
 # Custom Function to pull decennial census data =============================
 # Calls tidycensus&#39; get_decennial() function, and links the resultant data frame to our census dcennial relationship file
@@ -666,8 +675,8 @@ process_e4 &lt;- function(years) {
   colNames &lt;- c(&quot;place&quot;, paste0(&quot;1/1/&quot;, years))
   
   fileName &lt;- ifelse(2021 %in% years, 
-                     &quot;E4/Clean/E4-2021-cy.xlsx&quot;,
-                     paste0(&quot;E4/Clean/E4-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
+                     &quot;inputs/DOF/E4/Clean/E4-2021-cy.xlsx&quot;,
+                     paste0(&quot;inputs/DOF/E4/Clean/E4-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
   
   tCountyCity &lt;- lapply(c(&quot;County&quot;, &quot;City&quot;), function(x) {
     
@@ -699,8 +708,10 @@ process_e4 &lt;- function(years) {
 e4_final &lt;- bind_rows(
   process_e4(2011:2020),
   process_e4(2021:currentYear_Jan)
-) %&gt;% 
-  filter(year &lt;= currentYear) # Restrict to most recent year available in July E6
+) 
+
+# %&gt;% 
+# filter(year &lt;= currentYear) # Restrict to most recent year available in July E6
 
 saveRDS(e4_final, paste0(outputDir, &quot;dof-e4-processed-current.RDS&quot;))
 write_csv(e4_final, paste0(outputDir, &quot;dof-e4-processed-current.csv&quot;))</code></pre>
@@ -711,9 +722,13 @@ Change by County</h3>
 <pre class="r"><code># Function for processing 1970-2009 data --------------------
 process_e6 &lt;- function(years) {
   
+  if (F) {
+    years &lt;- 2020:currentYear
+  }
+  
   fileName &lt;- ifelse(2021 %in% years, 
-                     &quot;E6/Clean/E6-2020-cy.xlsx&quot;,
-                     paste0(&quot;E6/Clean/E6-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
+                     &quot;inputs/DOF/E6/Clean/E6-2020-cy.xlsx&quot;,
+                     paste0(&quot;inputs/DOF/E6/Clean/E6-&quot;, min(years), &quot;-&quot;, max(years), &quot;.xlsx&quot;))
   
   read_excel(fileName) %&gt;% 
     rename(county = County, year = Year) %&gt;% 

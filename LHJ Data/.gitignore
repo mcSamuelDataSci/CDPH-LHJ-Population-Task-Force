@@ -1,26 +1,23 @@
-app
-P3
-STD SAS files
-Census
-Exploratory
-Standards/census.api.key.txt
-Standards/censusVintageLink.xlsx
-Standards/createDecennialLink.R
-Standards/places_2000_2010_link.xls
-Standards/getCensusTotals.R
-E6/archive
-E4/Raw/archive
-E4/Clean/archive
-intermediatePopData/Archive
-intermediatePopData/*.csv
-finalPopData/Archive
-finalPopData/archive_20240807
-4-Create-Data-Dictionary.R
-E1
-Census Vintage
-make summary tables.R
-Methods - TF vs STDCB.docx
-Archive
 .Rproj.user
 .Rhistory
-finalPopData/lhj_pop_data.zip
+app
+Archive
+documentation/STD SAS files
+documentation/Methods - TF vs STDCB.docx
+Exploratory
+inputs/Census
+inputs/Census Vintage
+inputs/DOF/E4/Raw/archive
+inputs/DOF/E4/Clean/archive
+inputs/DOF/E6/archive
+inputs/Standards/census.api.key.txt
+inputs/Standards/censusVintageLink.xlsx
+inputs/Standards/createDecennialLink.R
+inputs/Standards/places_2000_2010_link.xls
+inputs/Standards/getCensusTotals.R
+outputs/intermediate/Archive
+outputs/intermediate/*.csv
+outputs/final/Archive
+outputs/final/*.csv
+outputs/final/lhj_pop_data.zip
+4-Create-Data-Dictionary.R
