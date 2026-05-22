@@ -47,7 +47,7 @@ two respective county-less-city LHJs of Alameda LHJ and Los Angeles LHJ.
 2.  Get **DOF-ARS** data and adjust the county ARS population estimates
     to the "better" county July 1st estimates (in **LHJ-Total)**.
     Referred to as **DOF-ARS-Adjusted**
-3.  Get **Census** data, and calculate the the proportion of the
+3.  Get **Census** data, and calculate the proportion of the
     city-level ARS strata to the population of the corresponding
     county-level ARS strata.
 4.  Apply the census proportions to their respective

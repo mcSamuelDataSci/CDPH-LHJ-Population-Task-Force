@@ -368,7 +368,7 @@ Calculate sex-age-race/ethnicity estimates at the health department level:
 
 -   Los Angeles HD ARS Population = (Los Angeles County ARS Population) - (Long Beach ARS Population + Pasadena ARS Population)
 
-Note: Negative population estimates are calculated for 29 sex-age-race-health department stratas. These all occur in Multi-Race and AI/AN 95+ year olds whose populations are very small. These negative values are set to 0.
+Note: Negative population estimates are calculated for 26 sex-age-race-health department stratas. These all occur in Multi-Race and AI/AN 95+ year olds whose populations are very small. These negative values are set to 0.
 
 ```{r}
 
@@ -470,7 +470,7 @@ ggplot(checkTotals, aes(x = year, y = population)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
 # Compare to prior file
-lhjARS_old <- readRDS(paste0(outputDir, "lhj-pop-ars-2000-cy.RDS")) %>% 
+lhjARS_old <- readRDS(paste0(outputDir, "lhj-pop-ars.RDS")) %>% 
   rename(old = population)
 
 comp <- full_join(
@@ -480,17 +480,68 @@ comp <- full_join(
   mutate(diff = new - old, 
          pdiff = diff / old)
 
+# County Totals
+comp %>% 
+  filter(year %in% 2020:2030) %>% 
+  group_by(year, county_lhj) %>% 
+  summarise(old = sum(old), 
+            new = sum(new)) %>% 
+  ungroup() %>% 
+  mutate(diff = new - old) %>% 
+  View()
+
+# Race
+comp %>% 
+  filter(year %in% 2020:2030) %>% 
+  group_by(year, race_eth) %>% 
+  summarise(old = sum(old), 
+            new = sum(new)) %>% 
+  ungroup() %>% 
+  mutate(diff = new - old, 
+         pdiff = diff / old) %>% 
+  View()
+
+# Age
+comp %>% 
+  filter(year %in% 2020:2030) %>% 
+  group_by(year, age) %>% 
+  summarise(old = sum(old), 
+            new = sum(new)) %>% 
+  ungroup() %>% 
+  mutate(diff = new - old, 
+         pdiff = diff / old) %>% 
+  View()
+
+# Sex
+comp %>% 
+  filter(year %in% 2020:2030) %>% 
+  group_by(year, sex) %>% 
+  summarise(old = sum(old), 
+            new = sum(new)) %>% 
+  ungroup() %>% 
+  mutate(diff = new - old, 
+         pdiff = diff / old) %>% 
+  View()
+
 # Check proj years
 lhjARS %>% 
   filter(year %in% 2025:2030) %>% 
   pivot_wider(names_from = year, values_from = population) %>% 
   View()
-  
+
+# Add Indicator columns --------------------------
+# 1. indicator_county
+# 1. indicator_lhj
+
+lhjARS <- lhjARS %>% 
+  mutate(county_indicator = ifelse(county_lhj %in% c("Berkeley", "Long Beach", "Pasadena", "Alameda HD", "Los Angeles HD"), 0, 1), 
+         lhj_indicator = ifelse(county_lhj %in% c("Alameda", "Los Angeles"), 0, 1)
+         )
 
 # Save data -------------------------------------
 
-saveRDS(lhjARS, paste0(outputDir, "lhj-pop-ars-2000-", maxYear, ".RDS"))
-write_csv(lhjARS, paste0(outputDir, "lhj-pop-ars-2000-", maxYear, ".csv"))
+saveRDS(lhjARS, paste0(outputDir, "lhj-pop-ars.RDS"))
+write_csv(lhjARS, paste0(outputDir, "lhj-pop-ars.csv"))
 
 
 
